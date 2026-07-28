@@ -1,0 +1,51 @@
+/-
+Copyright (c) 2026 Samuel Schlesinger. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Samuel Schlesinger
+-/
+import Complexitylib.TimeSpaceSimulation.BlockRespecting
+import Complexitylib.TimeSpaceSimulation.CandidateSearch
+import Complexitylib.TimeSpaceSimulation.CertifiedSearch
+import Complexitylib.TimeSpaceSimulation.CertifiedTrial
+import Complexitylib.TimeSpaceSimulation.ComplexityBridge
+import Complexitylib.TimeSpaceSimulation.ComputationGraph
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.BooleanTree
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.CompactContent
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.CompactEncoding
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.CompactTree
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.Contents
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.Guess
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.LatestBlock
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.LocalFunction
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.LocalSimulation
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.LocalTree
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.NodeContent
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.PaddedTree
+import Complexitylib.TimeSpaceSimulation.ComputationGraph.Unroll
+import Complexitylib.TimeSpaceSimulation.DecisionRecovery
+import Complexitylib.TimeSpaceSimulation.Locality
+import Complexitylib.TimeSpaceSimulation.NeighborhoodContent
+import Complexitylib.TimeSpaceSimulation.NeighborhoodEvaluation
+import Complexitylib.TimeSpaceSimulation.NeighborhoodEvaluator
+import Complexitylib.TimeSpaceSimulation.NeighborhoodGraph
+import Complexitylib.TimeSpaceSimulation.NeighborhoodGraph.DecisionRecovery
+import Complexitylib.TimeSpaceSimulation.NeighborhoodGraph.Guess
+import Complexitylib.TimeSpaceSimulation.NeighborhoodGraph.Guess.Consistency
+import Complexitylib.TimeSpaceSimulation.NeighborhoodGraph.Guess.Enumeration
+import Complexitylib.TimeSpaceSimulation.NeighborhoodGraph.Guess.EvaluatedProvider
+import Complexitylib.TimeSpaceSimulation.NeighborhoodGraph.Guess.Search
+import Complexitylib.TimeSpaceSimulation.NeighborhoodGraph.WorkspaceAccounting
+import Complexitylib.TimeSpaceSimulation.NeighborhoodPersistence
+import Complexitylib.TimeSpaceSimulation.NeighborhoodSimulation
+import Complexitylib.TimeSpaceSimulation.NeighborhoodTree
+import Complexitylib.TimeSpaceSimulation.Normalization
+import Complexitylib.TimeSpaceSimulation.Normalization.Compiler
+import Complexitylib.TimeSpaceSimulation.Runtime
+
+/-!
+# Time-to-space simulation
+
+Public aggregation module for the machine-level layers of Williams's
+square-root-space simulation, including block-respecting runs and their
+implicit bounded-indegree computation-graph topology.
+-/

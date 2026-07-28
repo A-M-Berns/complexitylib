@@ -1,0 +1,126 @@
+/-
+Copyright (c) 2026 Samuel Schlesinger. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Samuel Schlesinger
+-/
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.AssignmentBit
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.AssignmentCodeSemantics
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.AssignmentPayloadBit
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ChildNode
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ChildReady
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.CleanupBranch
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.CleanupDescent
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.CleanupScaleStep
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.CombineBranch
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.CombineCursorContract
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.CombineSafeCenter
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.CombineValue
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ComputationChunkKernel
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ControlDecode
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.DecisionBankSemantics
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.CursorFinish
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.Descent
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.Dispatcher
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.EnterBranch
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.EnterComputation
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.EnterLeaf
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.FrameBounds
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.FrameCodec
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.FrameInstall
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.FrameTransfer
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.GuessedCombineSpec
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.Layout
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.LocalAssignmentSemantics
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ParentPhase
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PackedComputationKernel
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PackedLocalConfiguration
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PackedLocalHeadScan
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PackedLocalInitialization
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PackedLocalOutputChunk
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PackedLocalRepresentation
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PackedLocalStep
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PackedLocalTrace
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PackedOutputChunkSemantics
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ParameterRepresentation
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PrepareBranch
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PrepareDescent
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.PrepareScale
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ProviderResultDecoding
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ProviderRootInitialization
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ProviderVectorCollection
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ProviderVectorSemantics
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ProviderQueryEvaluation
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.QueryInitialization
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.QueryLoop
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.QueryReinitialization
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.Representation
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.ResidueBankOps
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.SchedulerStep
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.SourceValue
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.StateQueryEvaluation
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.StateRootInitialization
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.VerdictRootInitialization
+
+/-!
+# Concrete neighborhood-evaluator microcode
+
+Public aggregation module for the fixed-register scheduler representation,
+frame transfer, control decoding, and semantic value-generation fragments.
+-/

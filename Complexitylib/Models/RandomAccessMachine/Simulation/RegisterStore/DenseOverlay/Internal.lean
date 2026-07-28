@@ -499,6 +499,91 @@ theorem Snapshot.initial_encode_length_internal (input : List Bool) :
     Nat.length_toBitsLE, hz, hone]
   omega
 
+theorem TraceFitsFrom.at_internal {program : Program} {input : List Bool}
+    {snapshot : Snapshot} {fuel bound k : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound)
+    (hk : k ≤ fuel) :
+    (snapshot.run program input k).encode.length ≤ bound :=
+  hfits k hk
+
+theorem TraceFitsFrom.initial_internal {program : Program}
+    {input : List Bool} {snapshot : Snapshot} {fuel bound : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound) :
+    snapshot.encode.length ≤ bound := by
+  simpa [Snapshot.run] using hfits 0 (Nat.zero_le fuel)
+
+theorem TraceFitsFrom.final_internal {program : Program}
+    {input : List Bool} {snapshot : Snapshot} {fuel bound : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound) :
+    (snapshot.run program input fuel).encode.length ≤ bound :=
+  hfits fuel le_rfl
+
+theorem TraceFitsFrom.mono_fuel_internal {program : Program}
+    {input : List Bool} {snapshot : Snapshot} {fuel fuel' bound : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound)
+    (hfuel : fuel' ≤ fuel) :
+    TraceFitsFrom program input snapshot fuel' bound := by
+  intro k hk
+  exact hfits k (le_trans hk hfuel)
+
+theorem TraceFitsFrom.mono_bound_internal {program : Program}
+    {input : List Bool} {snapshot : Snapshot} {fuel bound bound' : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound)
+    (hbound : bound ≤ bound') :
+    TraceFitsFrom program input snapshot fuel bound' := by
+  intro k hk
+  exact le_trans (hfits k hk) hbound
+
+theorem TraceFitsFrom.mono_internal {program : Program}
+    {input : List Bool} {snapshot : Snapshot}
+    {fuel fuel' bound bound' : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound)
+    (hfuel : fuel' ≤ fuel) (hbound : bound ≤ bound') :
+    TraceFitsFrom program input snapshot fuel' bound' :=
+  (hfits.mono_fuel_internal hfuel).mono_bound_internal hbound
+
+theorem TraceFitsFrom.tail_internal {program : Program}
+    {input : List Bool} {snapshot : Snapshot} {fuel bound : ℕ}
+    (hfits : TraceFitsFrom program input snapshot (fuel + 1) bound)
+    (hnotHalted : ¬snapshot.Halted program) :
+    TraceFitsFrom program input (snapshot.step program input) fuel bound := by
+  intro k hk
+  have hprefix := hfits (k + 1) (Nat.add_le_add_right hk 1)
+  simpa [Snapshot.run, hnotHalted] using hprefix
+
+theorem TraceFitsFrom.step_internal {program : Program}
+    {input : List Bool} {snapshot : Snapshot} {fuel bound : ℕ}
+    (hfits : TraceFitsFrom program input snapshot (fuel + 1) bound)
+    (hnotHalted : ¬snapshot.Halted program) :
+    (snapshot.step program input).encode.length ≤ bound :=
+  (hfits.tail_internal hnotHalted).initial_internal
+
+theorem TraceFits.initial_internal {program : Program}
+    {input : List Bool} {fuel bound : ℕ}
+    (hfits : TraceFits program input fuel bound) :
+    (Snapshot.initial input).encode.length ≤ bound :=
+  TraceFitsFrom.initial_internal hfits
+
+theorem TraceFits.final_internal {program : Program}
+    {input : List Bool} {fuel bound : ℕ}
+    (hfits : TraceFits program input fuel bound) :
+    ((Snapshot.initial input).run program input fuel).encode.length ≤ bound :=
+  TraceFitsFrom.final_internal hfits
+
+theorem TraceFits.mono_internal {program : Program}
+    {input : List Bool} {fuel fuel' bound bound' : ℕ}
+    (hfits : TraceFits program input fuel bound)
+    (hfuel : fuel' ≤ fuel) (hbound : bound ≤ bound') :
+    TraceFits program input fuel' bound' :=
+  TraceFitsFrom.mono_internal hfits hfuel hbound
+
+theorem TraceFits.initial_width_internal {program : Program}
+    {input : List Bool} {fuel bound : ℕ}
+    (hfits : TraceFits program input fuel bound) :
+    2 * bitlen (input.length + 1) + 6 ≤ bound := by
+  rw [← Snapshot.initial_encode_length_internal input]
+  exact hfits.initial_internal
+
 end DenseOverlay
 end RegisterStore
 end RAM

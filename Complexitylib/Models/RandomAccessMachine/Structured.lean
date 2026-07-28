@@ -5,6 +5,8 @@ Authors: Samuel Schlesinger
 -/
 import Complexitylib.Models.RandomAccessMachine.Structured.Defs
 import Complexitylib.Models.RandomAccessMachine.Structured.Internal
+import Complexitylib.Models.RandomAccessMachine.Structured.ControlFlow
+import Complexitylib.Models.RandomAccessMachine.Structured.Invariant
 import Complexitylib.Models.RandomAccessMachine.Structured.Switch
 
 /-!

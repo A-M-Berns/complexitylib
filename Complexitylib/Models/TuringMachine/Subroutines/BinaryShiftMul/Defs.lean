@@ -200,6 +200,12 @@ def binaryShiftMulTime (lhs rhs : ℕ) : ℕ :=
   let width := binaryShiftMulWidth lhs rhs
   33 * width ^ 2 + 170 * width + 58
 
+/-- All-prefix auxiliary-space budget for shift-and-add multiplication.
+Unlike the running-time bound, this grows only linearly in the combined
+operand width: each loop iteration reuses the same six work tapes. -/
+def binaryShiftMulLinearSpace (initialSpace lhs rhs : ℕ) : ℕ :=
+  initialSpace + 34 * binaryShiftMulWidth lhs rhs + 163
+
 end TM
 
 end Complexity

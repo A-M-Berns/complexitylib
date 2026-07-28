@@ -141,6 +141,22 @@ def run (program : Program) (input : List Bool) : ℕ → Snapshot → Snapshot
       else run program input fuel (snapshot.step program input)
 
 end Snapshot
+
+/-- A serialized-space certificate for every prefix of a dense-overlay run
+from an arbitrary snapshot. The bound measures the actual snapshot code, not
+RAM register-file space and not elapsed time. -/
+def TraceFitsFrom (program : Program) (input : List Bool)
+    (snapshot : Snapshot) (fuel bound : ℕ) : Prop :=
+  ∀ k, k ≤ fuel →
+    (snapshot.run program input k).encode.length ≤ bound
+
+/-- A serialized-space certificate for every prefix of the public-ABI run.
+The immutable input remains on the Turing input tape; only the tagged mutable
+overlay and program counter are charged here. -/
+def TraceFits (program : Program) (input : List Bool)
+    (fuel bound : ℕ) : Prop :=
+  TraceFitsFrom program input (Snapshot.initial input) fuel bound
+
 end DenseOverlay
 end RegisterStore
 end RAM

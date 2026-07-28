@@ -5,6 +5,8 @@ Authors: Samuel Schlesinger
 -/
 import Complexitylib.Models.TuringMachine.Hoare.Space.Defs
 import Complexitylib.Models.TuringMachine.Hoare.Space.Internal
+import Complexitylib.Models.TuringMachine.Hoare.Space.Decision
+import Complexitylib.Models.TuringMachine.Hoare.Space.Loop
 
 /-!
 # Space-aware Hoare specifications
@@ -13,7 +15,8 @@ import Complexitylib.Models.TuringMachine.Hoare.Space.Internal
 `TM.ComputesInSpace`; `TM.HoareTimeSpace` pairs it with a terminating
 time-bounded Hoare triple.
 The public API includes structural rules, sequential composition, transducer
-closure, and a fresh-start computation bridge.
+closure, generic loop certificates, and fresh-start computation and decision
+bridges.
 
 ## Main results
 
@@ -26,6 +29,10 @@ closure, and a fresh-start computation bridge.
 - `TM.seqTM_hoareTimeSpace` — compose two phases at one space budget.
 - `TM.IsTransducer.seqTM` — sequential composition remains append-only.
 - `TM.computesInSpace_of_hoareTimeSpace` — package per-input contracts.
+- `TM.LoopIterationSpaceSpec.toHoareSpace` — assemble all-prefix loop
+  certificates by a decreasing boundary variant.
+- `TM.decidesInSpace_of_hoareTimeSpace` — combine fresh-start Hoare contracts,
+  verdict correctness, and all-prefix output-head bounds.
 -/
 
 namespace Complexity

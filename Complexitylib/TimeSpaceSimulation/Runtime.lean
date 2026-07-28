@@ -1,0 +1,35 @@
+/-
+Copyright (c) 2026 Samuel Schlesinger. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Samuel Schlesinger
+-/
+import Complexitylib.TimeSpaceSimulation.Runtime.Arithmetic
+import Complexitylib.TimeSpaceSimulation.Runtime.CandidateParameters
+import Complexitylib.TimeSpaceSimulation.Runtime.CanonicalPrime
+import Complexitylib.TimeSpaceSimulation.Runtime.CompactValueCodeSemantics
+import Complexitylib.TimeSpaceSimulation.Runtime.CertifiedOutcome
+import Complexitylib.TimeSpaceSimulation.Runtime.ControllerMachine
+import Complexitylib.TimeSpaceSimulation.Runtime.GuessedLocalEvaluation
+import Complexitylib.TimeSpaceSimulation.Runtime.InputFrameLookup
+import Complexitylib.TimeSpaceSimulation.Runtime.InputLookup
+import Complexitylib.TimeSpaceSimulation.Runtime.LanguageDecision
+import Complexitylib.TimeSpaceSimulation.Runtime.MachineSpace
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode
+import Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodProgram
+import Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodScheduler
+import Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodScheduler.Coherence
+import Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodScheduler.StackDepth
+import Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodTrial
+import Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodTrialInstance
+import Complexitylib.TimeSpaceSimulation.Runtime.PackedDigits
+import Complexitylib.TimeSpaceSimulation.Runtime.PrimeSearchInvariant
+import Complexitylib.TimeSpaceSimulation.Runtime.SearchEnvelope
+import Complexitylib.TimeSpaceSimulation.Runtime.SearchProgram
+
+/-!
+# Runtime arithmetic for time-to-space simulation
+
+Public aggregation module for executable numeric representations used by the
+fixed-register Williams runtime.
+-/

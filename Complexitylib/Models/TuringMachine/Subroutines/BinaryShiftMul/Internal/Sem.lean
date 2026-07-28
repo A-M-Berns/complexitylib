@@ -996,6 +996,58 @@ private theorem binaryShiftMulBody_run {n : ℕ}
 private def binaryShiftMulLoopBound (lhs rhs : ℕ) : ℕ :=
   rhs.size * (33 * binaryShiftMulWidth lhs rhs + 164) + 1
 
+private theorem binaryShiftMulPartialCfg_withinAuxSpace {n : ℕ} {Q : Type}
+    (state : Q) (abi : BinaryShiftMulABI n) (lhs rhs index : ℕ)
+    (inp₀ : Tape) (work₀ : Fin n → Tape) (out₀ : Tape)
+    (inputLength initialSpace : ℕ) (hindex : index ≤ rhs.size)
+    (hworkSpace : ∀ i, (work₀ i).head ≤ initialSpace)
+    (hinputSpace : inp₀.head ≤ inputLength + initialSpace + 1) :
+    ({ state := state
+       input := inp₀
+       work := binaryShiftMulPartialWork abi work₀ lhs rhs index
+       output := out₀ } : Cfg n Q).WithinAuxSpace inputLength
+      (initialSpace + binaryShiftMulWidth lhs rhs + 1) := by
+  constructor
+  · intro i
+    change
+      (binaryShiftMulPartialWork abi work₀ lhs rhs index i).head ≤
+        initialSpace + binaryShiftMulWidth lhs rhs + 1
+    by_cases hrhsIdx : i = abi.rhs
+    · subst i
+      rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_rhs]
+      simp only [binaryShiftMulCursorTape]
+      simp only [binaryShiftMulWidth]
+      omega
+    by_cases haccIdx : i = abi.acc
+    · subst i
+      rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_acc]
+      rw [(binaryShiftMulNatTape_hasBinaryNat
+        (BinaryShiftMul.partialAcc lhs rhs index)).2.1]
+      omega
+    by_cases hshiftIdx : i = abi.shift
+    · subst i
+      rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_shift]
+      rw [(binaryShiftMulNatTape_hasBinaryNat
+        (BinaryShiftMul.partialShift lhs index)).2.1]
+      omega
+    by_cases htmpIdx : i = abi.tmp
+    · subst i
+      rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_tmp]
+      rw [(binaryShiftMulNatTape_hasBinaryNat 0).2.1]
+      omega
+    by_cases hdblIdx : i = abi.dbl
+    · subst i
+      rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_dbl]
+      rw [(binaryShiftMulNatTape_hasBinaryNat 0).2.1]
+      omega
+    rw [binaryShiftMulPartialWork,
+      binaryShiftMulLoopWork_other abi work₀ index
+        (BinaryShiftMul.partialAcc lhs rhs index)
+        (BinaryShiftMul.partialShift lhs index) i hrhsIdx haccIdx
+        hshiftIdx htmpIdx hdblIdx]
+    exact (hworkSpace i).trans (by omega)
+  · exact hinputSpace.trans (by omega)
+
 private def binaryShiftMulLoopPost {n : ℕ} (abi : BinaryShiftMulABI n)
     (lhs rhs : ℕ) (inp₀ : Tape) (work₀ : Fin n → Tape)
     (out₀ : Tape) : TapePred n :=
@@ -1219,6 +1271,195 @@ private theorem binaryShiftMulLoopTM_hoareTime_frame {n : ℕ}
         (BinaryShiftMul.partialAcc lhs rhs rhs.size)
         (BinaryShiftMul.partialShift lhs rhs.size) i hrhsIdx haccIdx
         hshiftIdx htmpIdx hdblIdx]
+
+private theorem binaryShiftMulLoopTM_hoareSpace_frame {n : ℕ}
+    (abi : BinaryShiftMulABI n) (lhs rhs inputLength initialSpace : ℕ)
+    (inp₀ : Tape) (work₀ : Fin n → Tape) (out₀ : Tape)
+    (hrhs : (work₀ abi.rhs).HasBinaryNat rhs)
+    (hacc : (work₀ abi.acc).HasBinaryNat 0)
+    (hshift : (work₀ abi.shift).HasBinaryNat lhs)
+    (htmp : (work₀ abi.tmp).HasBinaryNat 0)
+    (hdbl : (work₀ abi.dbl).HasBinaryNat 0)
+    (hinput : Parked inp₀) (hwork : ∀ i, Parked (work₀ i))
+    (houtput : Parked out₀)
+    (hworkSpace : ∀ i, (work₀ i).head ≤ initialSpace)
+    (hinputSpace : inp₀.head ≤ inputLength + initialSpace + 1) :
+    (binaryShiftMulLoopTM abi).HoareSpace
+      (fun inp work out => inp = inp₀ ∧ work = work₀ ∧ out = out₀)
+      inputLength (binaryShiftMulLinearSpace initialSpace lhs rhs) := by
+  classical
+  let body := binaryShiftMulBitBodyTM abi
+  have hbodyExists : ∀ index, ∃ time, index < rhs.size →
+      time ≤ binaryShiftMulBodyTime (binaryShiftMulBitAt rhs index)
+        (BinaryShiftMul.partialAcc lhs rhs index)
+        (BinaryShiftMul.partialShift lhs index) ∧
+      body.reachesIn time
+        { state := body.qstart
+          input := inp₀
+          work := binaryShiftMulPartialWork abi work₀ lhs rhs index
+          output := out₀ }
+        { state := body.qhalt
+          input := inp₀
+          work := binaryShiftMulBodyDoneWork abi work₀ lhs rhs index
+          output := out₀ } := by
+    intro index
+    by_cases hi : index < rhs.size
+    · obtain ⟨time, htime, hrun⟩ := binaryShiftMulBody_run abi lhs rhs
+        index inp₀ work₀ out₀ hrhs hinput hwork houtput hi
+      exact ⟨time, fun _ => ⟨htime, hrun⟩⟩
+    · exact ⟨0, fun h => (hi h).elim⟩
+  choose bodyTime hbody using hbodyExists
+  let spec : ForBinaryWorkLoopSpec abi.rhs body bodyTime rhs.size :=
+    { scanCfg := fun index =>
+        binaryShiftMulScanCfg abi lhs rhs index inp₀ work₀ out₀
+      bodyStartCfg := fun index =>
+        binaryShiftMulBodyStartCfg abi lhs rhs index inp₀ work₀ out₀
+      bodyDoneCfg := fun index =>
+        binaryShiftMulBodyDoneCfg abi lhs rhs index inp₀ work₀ out₀
+      doneCfg := binaryShiftMulDoneCfg abi lhs rhs inp₀ work₀ out₀
+      scanStep := by
+        intro index hi
+        apply forBinaryWorkTM_step_scan_bit_internal abi.rhs body
+          (binaryShiftMulBitAt rhs index)
+        · rfl
+        · exact binaryShiftMulLoopWork_read_bit abi work₀ rhs index
+            (BinaryShiftMul.partialAcc lhs rhs index)
+            (BinaryShiftMul.partialShift lhs index) hrhs hi
+        · exact hinput.read_ne_start
+        · exact fun i => (binaryShiftMulLoopWork_parked abi work₀ index
+            (BinaryShiftMul.partialAcc lhs rhs index)
+            (BinaryShiftMul.partialShift lhs index) hwork i).read_ne_start
+        · exact houtput.read_ne_start
+      bodyRun := by
+        intro index hi
+        exact forBinaryWorkTM_body_reachesIn_internal abi.rhs body
+          (hbody index hi).2
+      loopbackStep := by
+        intro index hi
+        let acc := BinaryShiftMul.partialAcc lhs rhs (index + 1)
+        let shift := BinaryShiftMul.partialShift lhs (index + 1)
+        let work := binaryShiftMulBodyDoneWork abi work₀ lhs rhs index
+        have hworkParked : ∀ i, Parked (work i) := by
+          exact binaryShiftMulLoopWork_parked abi work₀ index acc shift
+            hwork
+        have hstep := forBinaryWorkTM_step_body_halt_internal abi.rhs body
+          ({ state := body.qhalt
+             input := inp₀
+             work := work
+             output := out₀ } : Cfg n body.Q) rfl hinput.read_ne_start
+          (fun i => (hworkParked i).read_ne_start) houtput.read_ne_start
+        have hadvance := binaryShiftMulLoopWork_advance abi work₀ index
+          acc shift
+        simpa [binaryShiftMulBodyDoneCfg, binaryShiftMulScanCfg,
+          binaryShiftMulPartialWork, work, acc, shift,
+          binaryShiftMulBodyDoneWork, body, hadvance] using hstep
+      stopStep := by
+        apply forBinaryWorkTM_step_scan_blank_internal abi.rhs body
+        · rfl
+        · exact binaryShiftMulLoopWork_read_blank abi work₀ rhs
+            (BinaryShiftMul.partialAcc lhs rhs rhs.size)
+            (BinaryShiftMul.partialShift lhs rhs.size) hrhs
+        · exact hinput.read_ne_start
+        · exact fun i => (binaryShiftMulLoopWork_parked abi work₀ rhs.size
+            (BinaryShiftMul.partialAcc lhs rhs rhs.size)
+            (BinaryShiftMul.partialShift lhs rhs.size) hwork i).read_ne_start
+        · exact houtput.read_ne_start }
+  have hbodyBound : ∀ index, index < rhs.size →
+      bodyTime index ≤ 33 * binaryShiftMulWidth lhs rhs + 162 := by
+    intro index hi
+    have hwidths := BinaryShiftMul.partial_widths_le_internal lhs rhs index
+      (Nat.le_of_lt hi)
+    exact (hbody index hi).1.trans
+      (binaryShiftMulBodyTime_le (binaryShiftMulBitAt rhs index)
+        (BinaryShiftMul.partialAcc lhs rhs index)
+        (BinaryShiftMul.partialShift lhs index)
+        (binaryShiftMulWidth lhs rhs) hwidths.1 hwidths.2)
+  let spaceSpec : ForBinaryWorkLoopSpaceSpec spec inputLength
+      (binaryShiftMulLinearSpace initialSpace lhs rhs) :=
+    { scanWithin := by
+        intro index hi
+        have hwithin :=
+          binaryShiftMulPartialCfg_withinAuxSpace
+            (state := (spec.scanCfg index).state) abi lhs rhs index inp₀
+            work₀ out₀ inputLength initialSpace hi hworkSpace hinputSpace
+        simpa [spec, binaryShiftMulScanCfg] using hwithin.mono le_rfl (by
+          simp [binaryShiftMulLinearSpace]
+          omega)
+      doneWithin := by
+        have hwithin :=
+          binaryShiftMulPartialCfg_withinAuxSpace
+            (state := (spec.doneCfg).state) abi lhs rhs rhs.size inp₀
+            work₀ out₀ inputLength initialSpace le_rfl hworkSpace
+            hinputSpace
+        simpa [spec, binaryShiftMulDoneCfg] using hwithin.mono le_rfl (by
+          simp [binaryShiftMulLinearSpace]
+          omega)
+      bodyPrefixWithin := by
+        intro index time cfg hi htime hreach
+        have hstart :
+            (spec.bodyStartCfg index).WithinAuxSpace inputLength
+              (initialSpace + binaryShiftMulWidth lhs rhs + 1) := by
+          simpa [spec, binaryShiftMulBodyStartCfg] using
+            binaryShiftMulPartialCfg_withinAuxSpace
+              (state := (spec.bodyStartCfg index).state) abi lhs rhs index
+              inp₀ work₀ out₀ inputLength initialSpace (Nat.le_of_lt hi)
+              hworkSpace hinputSpace
+        have htimeBound := (htime.trans (hbodyBound index hi))
+        exact (hstart.reachesIn hreach).mono le_rfl (by
+          simp only [binaryShiftMulLinearSpace]
+          omega) }
+  have hinitialWork : binaryShiftMulPartialWork abi work₀ lhs rhs 0 = work₀ := by
+    funext i
+    by_cases hrhsIdx : i = abi.rhs
+    · subst i
+      rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_rhs]
+      apply Tape.ext
+      · simpa [binaryShiftMulCursorTape] using hrhs.2.1.symm
+      · rfl
+    by_cases haccIdx : i = abi.acc
+    · subst i
+      rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_acc]
+      simpa [BinaryShiftMul.partialAcc] using hacc.eq_init_move_right.symm
+    by_cases hshiftIdx : i = abi.shift
+    · subst i
+      rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_shift]
+      simpa [BinaryShiftMul.partialShift] using hshift.eq_init_move_right.symm
+    by_cases htmpIdx : i = abi.tmp
+    · subst i
+      rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_tmp]
+      exact htmp.eq_init_move_right.symm
+    by_cases hdblIdx : i = abi.dbl
+    · subst i
+      rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_dbl]
+      exact hdbl.eq_init_move_right.symm
+    exact binaryShiftMulLoopWork_other abi work₀ 0
+      (BinaryShiftMul.partialAcc lhs rhs 0)
+      (BinaryShiftMul.partialShift lhs 0) i hrhsIdx haccIdx hshiftIdx
+      htmpIdx hdblIdx
+  intro inp work out hpre cfg hreach
+  rcases hpre with ⟨hinp, hworkEq, hout⟩
+  subst inp
+  subst work
+  subst out
+  obtain ⟨time, hreachIn⟩ :=
+    (binaryShiftMulLoopTM abi).reaches_to_reachesIn hreach
+  have hfull := spec.reachesIn (count := rhs.size) (value := 0) (by simp)
+  have hfull' : (binaryShiftMulLoopTM abi).reachesIn
+      (forBinaryWorkLoopTime bodyTime 0 rhs.size)
+      { state := (binaryShiftMulLoopTM abi).qstart
+        input := inp₀
+        work := work₀
+        output := out₀ } spec.doneCfg := by
+    simpa [binaryShiftMulLoopTM, spec, binaryShiftMulScanCfg,
+      hinitialWork, body] using hfull
+  have htime : time ≤ forBinaryWorkLoopTime bodyTime 0 rhs.size :=
+    (binaryShiftMulLoopTM abi).reachesIn_le_halt hreachIn hfull' rfl
+  have hreachSpec :
+      (binaryShiftMulLoopTM abi).reachesIn time (spec.scanCfg 0) cfg := by
+    simpa [binaryShiftMulLoopTM, spec, binaryShiftMulScanCfg,
+      hinitialWork, body] using hreachIn
+  exact spaceSpec.prefix_withinAuxSpace (count := rhs.size) (value := 0)
+    (by simp) hreachSpec htime
 
 private def binaryShiftMulCleanupBits {n : ℕ}
     (abi : BinaryShiftMulABI n) (lhs rhs : ℕ) (i : Fin n) : List Bool :=
@@ -1577,6 +1818,93 @@ private theorem binaryShiftMulLoopTM_hoareTime_from_init {n : ℕ}
     hdblIdx).trans
       (hframe i hlhsIdx hrhsIdx haccIdx hshiftIdx htmpIdx hdblIdx)
 
+private theorem binaryShiftMulLoopTM_hoareTimeSpace_from_init {n : ℕ}
+    (abi : BinaryShiftMulABI n) (lhs rhs inputLength initialSpace : ℕ)
+    (inp₀ : Tape) (work₀ : Fin n → Tape) (out₀ : Tape)
+    (hacc₀ : (work₀ abi.acc).HasBinaryNat 0)
+    (hinput : Parked inp₀) (hwork : ∀ i, Parked (work₀ i))
+    (houtput : Parked out₀)
+    (hinitial :
+      ({ state := (binaryShiftMulTM abi).qstart
+         input := inp₀
+         work := work₀
+         output := out₀ } :
+        Cfg n (binaryShiftMulTM abi).Q).WithinAuxSpace
+          inputLength initialSpace) :
+    (binaryShiftMulLoopTM abi).HoareTimeSpace
+      (binaryShiftMulInitPost abi lhs rhs inp₀ work₀ out₀)
+      (binaryShiftMulLoopPost abi lhs rhs inp₀ work₀ out₀)
+      (binaryShiftMulLoopBound lhs rhs) inputLength
+      (binaryShiftMulLinearSpace initialSpace lhs rhs) := by
+  have htime := binaryShiftMulLoopTM_hoareTime_from_init abi lhs rhs
+    inp₀ work₀ out₀ hinput hwork houtput
+  apply htime.and_hoareSpace
+  intro inp work out hpre cfg hreach
+  rcases hpre with ⟨hinp, hlhs, hrhs, hacc, hshift, htmp, hdbl,
+    hframe, hout⟩
+  have hone : 1 ≤ initialSpace := by
+    rw [← hacc₀.2.1]
+    exact hinitial.1 abi.acc
+  have hworkParked : ∀ i, Parked (work i) := by
+    intro i
+    by_cases hlhsIdx : i = abi.lhs
+    · subst i
+      exact hasBinaryNat_parked hlhs
+    by_cases hrhsIdx : i = abi.rhs
+    · subst i
+      exact hasBinaryNat_parked hrhs
+    by_cases haccIdx : i = abi.acc
+    · subst i
+      exact hasBinaryNat_parked hacc
+    by_cases hshiftIdx : i = abi.shift
+    · subst i
+      exact hasBinaryNat_parked hshift
+    by_cases htmpIdx : i = abi.tmp
+    · subst i
+      exact hasBinaryNat_parked htmp
+    by_cases hdblIdx : i = abi.dbl
+    · subst i
+      exact hasBinaryNat_parked hdbl
+    rw [hframe i hlhsIdx hrhsIdx haccIdx hshiftIdx htmpIdx hdblIdx]
+    exact hwork i
+  have hworkSpaceNow : ∀ i, (work i).head ≤ initialSpace := by
+    intro i
+    by_cases hlhsIdx : i = abi.lhs
+    · subst i
+      rw [hlhs.2.1]
+      exact hone
+    by_cases hrhsIdx : i = abi.rhs
+    · subst i
+      rw [hrhs.2.1]
+      exact hone
+    by_cases haccIdx : i = abi.acc
+    · subst i
+      rw [hacc.2.1]
+      exact hone
+    by_cases hshiftIdx : i = abi.shift
+    · subst i
+      rw [hshift.2.1]
+      exact hone
+    by_cases htmpIdx : i = abi.tmp
+    · subst i
+      rw [htmp.2.1]
+      exact hone
+    by_cases hdblIdx : i = abi.dbl
+    · subst i
+      rw [hdbl.2.1]
+      exact hone
+    rw [hframe i hlhsIdx hrhsIdx haccIdx hshiftIdx htmpIdx hdblIdx]
+    exact hinitial.1 i
+  have hinputSpaceNow :
+      inp.head ≤ inputLength + initialSpace + 1 := by
+    rw [hinp]
+    exact hinitial.2
+  have hspace := binaryShiftMulLoopTM_hoareSpace_frame abi lhs rhs
+    inputLength initialSpace inp work out hrhs hacc hshift htmp hdbl
+    (hinp.symm ▸ hinput) hworkParked (hout.symm ▸ houtput)
+    hworkSpaceNow hinputSpaceNow
+  exact hspace inp work out ⟨rfl, rfl, rfl⟩ cfg hreach
+
 private theorem binaryShiftMulInitPost_transition {n : ℕ}
     (abi : BinaryShiftMulABI n) (lhs rhs : ℕ)
     (inp₀ : Tape) (work₀ : Fin n → Tape) (out₀ : Tape)
@@ -1737,6 +2065,130 @@ theorem binaryShiftMulTM_hoareTime_frame_internal {n : ℕ}
   have hcleanupBound := binaryShiftMulCleanupTime_le abi lhs rhs
   simp only [binaryShiftMulTime]
   omega
+
+/-- Linear-width all-prefix auxiliary-space contract for the concrete
+shift-and-add multiplier. The quadratic running time is split into
+width-linear loop segments whose work tapes are reused at every boundary. -/
+theorem binaryShiftMulTM_hoareTimeSpace_linear_frame_internal {n : ℕ}
+    (abi : BinaryShiftMulABI n) (lhs rhs inputLength initialSpace : ℕ)
+    (inp₀ : Tape) (work₀ : Fin n → Tape) (out₀ : Tape)
+    (hlhs : (work₀ abi.lhs).HasBinaryNat lhs)
+    (hrhs : (work₀ abi.rhs).HasBinaryNat rhs)
+    (hacc : (work₀ abi.acc).HasBinaryNat 0)
+    (hshift : (work₀ abi.shift).HasBinaryNat 0)
+    (htmp : (work₀ abi.tmp).HasBinaryNat 0)
+    (hdbl : (work₀ abi.dbl).HasBinaryNat 0)
+    (hinput : Parked inp₀) (hwork : ∀ i, Parked (work₀ i))
+    (houtput : Parked out₀)
+    (hinitial :
+      ({ state := (binaryShiftMulTM abi).qstart
+         input := inp₀
+         work := work₀
+         output := out₀ } :
+        Cfg n (binaryShiftMulTM abi).Q).WithinAuxSpace
+          inputLength initialSpace) :
+    (binaryShiftMulTM abi).HoareTimeSpace
+      (fun inp work out => inp = inp₀ ∧ work = work₀ ∧ out = out₀)
+      (binaryShiftMulPost abi lhs rhs inp₀ work₀ out₀)
+      (binaryShiftMulTime lhs rhs) inputLength
+      (binaryShiftMulLinearSpace initialSpace lhs rhs) := by
+  have hinitBase :=
+    (binaryShiftMulInitTM_hoareTime_frame abi lhs rhs inp₀ work₀ out₀
+      hlhs hrhs hacc hshift htmp hdbl hinput hwork houtput
+      ).toHoareTimeSpace (inputLength := inputLength)
+        (initialSpace := initialSpace) (by
+          rintro inp work out ⟨hinp, hworkEq, hout⟩
+          subst inp
+          subst work
+          subst out
+          exact hinitial)
+  have hcopyBound := binaryCopyTime_le lhs 0
+  simp only [Nat.size_zero, Nat.mul_zero, Nat.add_zero] at hcopyBound
+  have hlhsWidth : lhs.size ≤ binaryShiftMulWidth lhs rhs := by
+    simp [binaryShiftMulWidth]
+  have hinit : (binaryShiftMulInitTM abi).HoareTimeSpace
+      (fun inp work out => inp = inp₀ ∧ work = work₀ ∧ out = out₀)
+      (binaryShiftMulInitPost abi lhs rhs inp₀ work₀ out₀)
+      (binaryCopyTime lhs 0) inputLength
+      (binaryShiftMulLinearSpace initialSpace lhs rhs) :=
+    hinitBase.consequence
+      (fun _ _ _ hpre => hpre) (fun _ _ _ hpost => hpost)
+      le_rfl le_rfl (by
+        simp only [binaryShiftMulLinearSpace]
+        omega)
+  have hloop := binaryShiftMulLoopTM_hoareTimeSpace_from_init abi lhs rhs
+    inputLength initialSpace inp₀ work₀ out₀ hacc hinput hwork houtput
+    hinitial
+  have hcleanupTime := binaryShiftMulCleanupTM_hoareTime_frame abi lhs rhs
+    inp₀ work₀ out₀ hinput hwork houtput
+  have hcleanupBase := hcleanupTime.toHoareTimeSpace
+    (inputLength := inputLength)
+    (initialSpace := initialSpace + binaryShiftMulWidth lhs rhs + 1) (by
+      intro inp work out hpre
+      rcases hpre with ⟨hinp, hlhsNow, _hrhsContent, _hrhsStart,
+        hrhsHead, haccNow, hshiftNow, htmpNow, hdblNow, hframe, _hout⟩
+      constructor
+      · intro i
+        change (work i).head ≤
+          initialSpace + binaryShiftMulWidth lhs rhs + 1
+        by_cases hlhsIdx : i = abi.lhs
+        · subst i
+          rw [hlhsNow.2.1]
+          omega
+        by_cases hrhsIdx : i = abi.rhs
+        · subst i
+          rw [hrhsHead]
+          simp only [binaryShiftMulWidth]
+          omega
+        by_cases haccIdx : i = abi.acc
+        · subst i
+          rw [haccNow.2.1]
+          omega
+        by_cases hshiftIdx : i = abi.shift
+        · subst i
+          rw [hshiftNow.2.1]
+          omega
+        by_cases htmpIdx : i = abi.tmp
+        · subst i
+          rw [htmpNow.2.1]
+          omega
+        by_cases hdblIdx : i = abi.dbl
+        · subst i
+          rw [hdblNow.2.1]
+          omega
+        rw [hframe i hlhsIdx hrhsIdx haccIdx hshiftIdx htmpIdx hdblIdx]
+        exact (hinitial.1 i).trans (by omega)
+      · rw [hinp]
+        exact hinitial.2.trans (by omega))
+  have hcleanupBound := binaryShiftMulCleanupTime_le abi lhs rhs
+  have hcleanup : (binaryShiftMulCleanupTM abi).HoareTimeSpace
+      (binaryShiftMulLoopPost abi lhs rhs inp₀ work₀ out₀)
+      (binaryShiftMulPost abi lhs rhs inp₀ work₀ out₀)
+      (binaryShiftMulCleanupTime abi lhs rhs) inputLength
+      (binaryShiftMulLinearSpace initialSpace lhs rhs) :=
+    hcleanupBase.consequence
+      (fun _ _ _ hpre => hpre) (fun _ _ _ hpost => hpost)
+      le_rfl le_rfl (by
+        simp only [binaryShiftMulLinearSpace]
+        omega)
+  have htail := seqTM_hoareTimeSpace (binaryShiftMulLoopTM abi)
+    (binaryShiftMulCleanupTM abi) hloop
+    (binaryShiftMulLoopPost_transition abi lhs rhs inp₀ work₀ out₀
+      hinput hwork houtput)
+    hcleanup
+  have hrun := seqTM_hoareTimeSpace (binaryShiftMulInitTM abi)
+    (seqTM (binaryShiftMulLoopTM abi) (binaryShiftMulCleanupTM abi))
+    hinit
+    (binaryShiftMulInitPost_transition abi lhs rhs inp₀ work₀ out₀
+      hinput hwork houtput)
+    htail
+  have hspace : (binaryShiftMulTM abi).HoareSpace
+      (fun inp work out => inp = inp₀ ∧ work = work₀ ∧ out = out₀)
+      inputLength (binaryShiftMulLinearSpace initialSpace lhs rhs) := by
+    simpa only [binaryShiftMulTM, max_self] using hrun.2
+  exact (binaryShiftMulTM_hoareTime_frame_internal abi lhs rhs inp₀ work₀
+    out₀ hlhs hrhs hacc hshift htmp hdbl hinput hwork houtput
+    ).and_hoareSpace hspace
 
 /-- Coarse all-prefix auxiliary-space contract inherited from the concrete
 quadratic time envelope. -/

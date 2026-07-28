@@ -224,6 +224,98 @@ theorem Snapshot.initial_encode_length (input : List Bool) :
       2 * bitlen (input.length + 1) + 6 :=
   Snapshot.initial_encode_length_internal input
 
+/-- Project the serialized bound at any certified run prefix. -/
+theorem TraceFitsFrom.at {program : Program} {input : List Bool}
+    {snapshot : Snapshot} {fuel bound k : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound)
+    (hk : k ≤ fuel) :
+    (snapshot.run program input k).encode.length ≤ bound :=
+  hfits.at_internal hk
+
+/-- Every prefix certificate bounds its starting snapshot. -/
+theorem TraceFitsFrom.initial {program : Program} {input : List Bool}
+    {snapshot : Snapshot} {fuel bound : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound) :
+    snapshot.encode.length ≤ bound :=
+  hfits.initial_internal
+
+/-- Every prefix certificate bounds its terminal fuel-bounded snapshot. -/
+theorem TraceFitsFrom.final {program : Program} {input : List Bool}
+    {snapshot : Snapshot} {fuel bound : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound) :
+    (snapshot.run program input fuel).encode.length ≤ bound :=
+  hfits.final_internal
+
+/-- Restricting the fuel preserves a serialized prefix certificate. -/
+theorem TraceFitsFrom.mono_fuel {program : Program} {input : List Bool}
+    {snapshot : Snapshot} {fuel fuel' bound : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound)
+    (hfuel : fuel' ≤ fuel) :
+    TraceFitsFrom program input snapshot fuel' bound :=
+  hfits.mono_fuel_internal hfuel
+
+/-- Enlarging the serialized-space budget preserves a prefix certificate. -/
+theorem TraceFitsFrom.mono_bound {program : Program} {input : List Bool}
+    {snapshot : Snapshot} {fuel bound bound' : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound)
+    (hbound : bound ≤ bound') :
+    TraceFitsFrom program input snapshot fuel bound' :=
+  hfits.mono_bound_internal hbound
+
+/-- Simultaneously restrict fuel and enlarge the serialized-space budget. -/
+theorem TraceFitsFrom.mono {program : Program} {input : List Bool}
+    {snapshot : Snapshot} {fuel fuel' bound bound' : ℕ}
+    (hfits : TraceFitsFrom program input snapshot fuel bound)
+    (hfuel : fuel' ≤ fuel) (hbound : bound ≤ bound') :
+    TraceFitsFrom program input snapshot fuel' bound' :=
+  hfits.mono_internal hfuel hbound
+
+/-- Removing a known nonhalting first step preserves all remaining prefix
+bounds. -/
+theorem TraceFitsFrom.tail {program : Program} {input : List Bool}
+    {snapshot : Snapshot} {fuel bound : ℕ}
+    (hfits : TraceFitsFrom program input snapshot (fuel + 1) bound)
+    (hnotHalted : ¬snapshot.Halted program) :
+    TraceFitsFrom program input (snapshot.step program input) fuel bound :=
+  hfits.tail_internal hnotHalted
+
+/-- In particular, a positive-fuel certificate bounds the first stepped
+snapshot whenever the source snapshot is not halted. -/
+theorem TraceFitsFrom.step {program : Program} {input : List Bool}
+    {snapshot : Snapshot} {fuel bound : ℕ}
+    (hfits : TraceFitsFrom program input snapshot (fuel + 1) bound)
+    (hnotHalted : ¬snapshot.Halted program) :
+    (snapshot.step program input).encode.length ≤ bound :=
+  hfits.step_internal hnotHalted
+
+/-- A public-ABI certificate bounds the initial one-entry snapshot. -/
+theorem TraceFits.initial {program : Program} {input : List Bool}
+    {fuel bound : ℕ} (hfits : TraceFits program input fuel bound) :
+    (Snapshot.initial input).encode.length ≤ bound :=
+  hfits.initial_internal
+
+/-- A public-ABI certificate bounds the requested final prefix. -/
+theorem TraceFits.final {program : Program} {input : List Bool}
+    {fuel bound : ℕ} (hfits : TraceFits program input fuel bound) :
+    ((Snapshot.initial input).run program input fuel).encode.length ≤ bound :=
+  hfits.final_internal
+
+/-- Restricting fuel and enlarging the code budget preserves a public-ABI
+trace certificate. -/
+theorem TraceFits.mono {program : Program} {input : List Bool}
+    {fuel fuel' bound bound' : ℕ}
+    (hfits : TraceFits program input fuel bound)
+    (hfuel : fuel' ≤ fuel) (hbound : bound ≤ bound') :
+    TraceFits program input fuel' bound' :=
+  hfits.mono_internal hfuel hbound
+
+/-- Every public-ABI trace budget must at least contain the exact encoded
+initial snapshot. -/
+theorem TraceFits.initial_width {program : Program} {input : List Bool}
+    {fuel bound : ℕ} (hfits : TraceFits program input fuel bound) :
+    2 * bitlen (input.length + 1) + 6 ≤ bound :=
+  hfits.initial_width_internal
+
 end DenseOverlay
 end RegisterStore
 end RAM

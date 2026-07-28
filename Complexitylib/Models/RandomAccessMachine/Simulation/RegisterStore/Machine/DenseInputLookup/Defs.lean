@@ -128,6 +128,12 @@ def denseInputScanTime (inputLength address : ℕ) : ℕ :=
     (fun processed => denseInputStepTime (address - processed))
     0 inputLength
 
+/-- Sharp all-prefix auxiliary-space budget for one immutable-input scan.
+Unlike the runtime, this charges the logarithmic countdown workspace only
+once, independently of the number of input symbols scanned. -/
+def denseInputScanSpace (initialSpace address : ℕ) : ℕ :=
+  initialSpace + 2 * address.size + 8
+
 /-- Full positive-address dense-bank fallback: copy the query into a private
 countdown, scan the immutable input, rewind the input head, and clear the
 countdown back to the reusable blank boundary. -/

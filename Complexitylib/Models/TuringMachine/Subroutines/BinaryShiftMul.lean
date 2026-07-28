@@ -116,6 +116,48 @@ theorem binaryShiftMulTM_reachesIn_frame {n : ℕ}
     hlhs hrhs hacc hshift htmp hdbl hinput hwork houtput
     inp₀ work₀ out₀ ⟨rfl, rfl, rfl⟩
 
+/-- Sharp all-prefix space contract for canonical shift-and-add
+multiplication. Although the machine takes quadratic time, it reuses its six
+work tapes and therefore needs only linear space in the combined operand
+width. -/
+theorem binaryShiftMulTM_hoareTimeSpace_linear_frame {n : ℕ}
+    (abi : BinaryShiftMulABI n) (lhs rhs inputLength initialSpace : ℕ)
+    (inp₀ : Tape) (work₀ : Fin n → Tape) (out₀ : Tape)
+    (hlhs : (work₀ abi.lhs).HasBinaryNat lhs)
+    (hrhs : (work₀ abi.rhs).HasBinaryNat rhs)
+    (hacc : (work₀ abi.acc).HasBinaryNat 0)
+    (hshift : (work₀ abi.shift).HasBinaryNat 0)
+    (htmp : (work₀ abi.tmp).HasBinaryNat 0)
+    (hdbl : (work₀ abi.dbl).HasBinaryNat 0)
+    (hinput : Parked inp₀) (hwork : ∀ i, Parked (work₀ i))
+    (houtput : Parked out₀)
+    (hinitial :
+      ({ state := (binaryShiftMulTM abi).qstart
+         input := inp₀
+         work := work₀
+         output := out₀ } :
+        Cfg n (binaryShiftMulTM abi).Q).WithinAuxSpace
+          inputLength initialSpace) :
+    (binaryShiftMulTM abi).HoareTimeSpace
+      (fun inp work out => inp = inp₀ ∧ work = work₀ ∧ out = out₀)
+      (fun inp work out =>
+        inp = inp₀ ∧
+        (work abi.lhs).HasBinaryNat lhs ∧
+        (work abi.rhs).HasBinaryNat rhs ∧
+        (work abi.acc).HasBinaryNat (lhs * rhs) ∧
+        (work abi.shift).HasBinaryNat 0 ∧
+        (work abi.tmp).HasBinaryNat 0 ∧
+        (work abi.dbl).HasBinaryNat 0 ∧
+        (∀ i, i ≠ abi.lhs → i ≠ abi.rhs → i ≠ abi.acc →
+          i ≠ abi.shift → i ≠ abi.tmp → i ≠ abi.dbl →
+            work i = work₀ i) ∧
+        out = out₀)
+      (binaryShiftMulTime lhs rhs) inputLength
+      (binaryShiftMulLinearSpace initialSpace lhs rhs) :=
+  binaryShiftMulTM_hoareTimeSpace_linear_frame_internal abi lhs rhs
+    inputLength initialSpace inp₀ work₀ out₀ hlhs hrhs hacc hshift htmp
+    hdbl hinput hwork houtput hinitial
+
 /-- All-prefix auxiliary-space contract obtained from the concrete quadratic
 time envelope. -/
 theorem binaryShiftMulTM_hoareTimeSpace_frame {n : ℕ}

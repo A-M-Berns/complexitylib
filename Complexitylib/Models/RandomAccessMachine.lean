@@ -47,6 +47,8 @@ import
 import
   Complexitylib.Models.RandomAccessMachine.Simulation.RegisterStore.Machine.Program.DenseBounds
 import
+  Complexitylib.Models.RandomAccessMachine.Simulation.RegisterStore.Machine.Program.DenseSpace
+import
   Complexitylib.Models.RandomAccessMachine.Simulation.RegisterStore.Machine.Program.Decision
 import Complexitylib.Models.RandomAccessMachine.Simulation.RegisterStore.Machine.WordDecode
 import Complexitylib.Models.RandomAccessMachine.Simulation.RegisterStore.Machine.WordEncode

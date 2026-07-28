@@ -7,6 +7,7 @@ import
   Complexitylib.Models.RandomAccessMachine.Simulation.RegisterStore.Machine.DenseInputLookup.Defs
 import Complexitylib.Models.TuringMachine.Combinators.WorkBranch
 import Complexitylib.Models.TuringMachine.Combinators.ForInput.Internal
+import Complexitylib.Models.TuringMachine.Hoare.Space
 import Complexitylib.Models.TuringMachine.Registers
 import Complexitylib.Models.TuringMachine.Subroutines.BinaryCopy
 import Complexitylib.Models.TuringMachine.Subroutines.BinaryPred
@@ -693,6 +694,26 @@ private theorem denseInputScanTM_loopback_step {n : ℕ}
     TM.forInputBodyWrap, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
     hstep
 
+private theorem denseInputStepTime_le_width (address processed : ℕ) :
+    denseInputStepTime (address - processed) ≤ 2 * address.size + 7 := by
+  by_cases hzero : address - processed = 0
+  · simp [denseInputStepTime, hzero]
+  · by_cases hone : address - processed = 1
+    · have hpred := TM.binaryPredTime_le_internal 0
+      have hsize : 1 ≤ address.size :=
+        Nat.size_pos.mpr (by omega)
+      simp [denseInputStepTime, hone] at hpred ⊢
+      omega
+    · have hpred :=
+        TM.binaryPredTime_le_internal (address - processed - 1)
+      have hwidth : (address - processed).size ≤ address.size :=
+        Nat.size_le_size (Nat.sub_le address processed)
+      rw [denseInputStepTime, if_neg hzero, if_neg hone]
+      have hsucc : address - processed - 1 + 1 = address - processed := by
+        omega
+      rw [hsucc] at hpred
+      omega
+
 private def denseInputLoopSpec {n : ℕ} (counter result : Fin n)
     (hne : counter ≠ result) (work₀ : Fin n → Tape) (out₀ : Tape)
     (input : List Bool) (address : ℕ) (haddress : address ≠ 0)
@@ -721,6 +742,217 @@ private def denseInputLoopSpec {n : ℕ} (counter result : Fin n)
       address processed hwork houtput
   blankStep := denseInputScanTM_scan_blank_step counter result hne work₀ out₀
     input address hwork houtput
+
+private theorem denseInputScanCfg_withinAuxSpace {n : ℕ}
+    (counter result : Fin n) (hne : counter ≠ result)
+    (work₀ : Fin n → Tape) (out₀ : Tape) (input : List Bool)
+    (address processed initialSpace : ℕ)
+    (hprocessed : processed ≤ input.length)
+    (hworkSpace : ∀ i, (work₀ i).head ≤ initialSpace) :
+    Cfg.WithinAuxSpace
+      (denseInputScanCfg counter result work₀ out₀ input address processed)
+      input.length (denseInputScanSpace initialSpace address) := by
+  constructor
+  · intro i
+    change (denseInputWork counter result work₀ input address processed i).head ≤
+      denseInputScanSpace initialSpace address
+    by_cases hic : i = counter
+    · subst i
+      rw [denseInputWork_counter counter result hne]
+      simp [denseInputNatTape, Tape.move, denseInputScanSpace]
+    · by_cases hir : i = result
+      · subst i
+        rw [denseInputWork_result]
+        simp [denseInputResultTape, denseInputBitTape, TM.resetBinaryBlank,
+          Tape.writeAndMove, Tape.write, Tape.move, denseInputScanSpace]
+        split_ifs <;> simp
+      · rw [denseInputWork_other counter result work₀ input address processed
+          i hic hir]
+        have hspace :
+            initialSpace ≤ denseInputScanSpace initialSpace address := by
+          simp only [denseInputScanSpace]
+          omega
+        exact (hworkSpace i).trans hspace
+  · simp [denseInputScanCfg, denseInputTape]
+    omega
+
+private theorem denseInputBodyStartCfg_withinAuxSpace {n : ℕ}
+    (counter result : Fin n) (hne : counter ≠ result)
+    (work₀ : Fin n → Tape) (out₀ : Tape) (input : List Bool)
+    (address processed initialSpace : ℕ)
+    (hprocessed : processed < input.length)
+    (hworkSpace : ∀ i, (work₀ i).head ≤ initialSpace) :
+    Cfg.WithinAuxSpace
+      (denseInputBodyStartCfg counter result work₀ out₀ input address processed)
+      input.length (initialSpace + 1) := by
+  constructor
+  · intro i
+    change (denseInputWork counter result work₀ input address processed i).head ≤
+      initialSpace + 1
+    by_cases hic : i = counter
+    · subst i
+      rw [denseInputWork_counter counter result hne]
+      simp [denseInputNatTape, Tape.move]
+    · by_cases hir : i = result
+      · subst i
+        rw [denseInputWork_result]
+        simp [denseInputResultTape, denseInputBitTape, TM.resetBinaryBlank,
+          Tape.writeAndMove, Tape.write, Tape.move]
+        split_ifs <;> simp
+      · rw [denseInputWork_other counter result work₀ input address processed
+          i hic hir]
+        exact (hworkSpace i).trans (Nat.le_succ initialSpace)
+  · simp [denseInputBodyStartCfg, denseInputTape]
+    omega
+
+private theorem denseInputDoneCfg_withinAuxSpace {n : ℕ}
+    (counter result : Fin n) (hne : counter ≠ result)
+    (work₀ : Fin n → Tape) (out₀ : Tape) (input : List Bool)
+    (address initialSpace : ℕ)
+    (hworkSpace : ∀ i, (work₀ i).head ≤ initialSpace) :
+    Cfg.WithinAuxSpace
+      (denseInputDoneCfg counter result work₀ out₀ input address)
+      input.length (denseInputScanSpace initialSpace address) := by
+  change
+    Cfg.WithinAuxSpace
+      (denseInputScanCfg counter result work₀ out₀ input address input.length)
+      input.length (denseInputScanSpace initialSpace address)
+  exact denseInputScanCfg_withinAuxSpace counter result hne work₀ out₀ input
+    address input.length initialSpace le_rfl hworkSpace
+
+private theorem denseInputBodyPrefix_withinAuxSpace {n : ℕ}
+    (counter result : Fin n) (hne : counter ≠ result)
+    (work₀ : Fin n → Tape) (out₀ : Tape) (input : List Bool)
+    (address processed initialSpace t : ℕ)
+    (d : Complexity.Cfg n (denseInputStepTM counter result).Q)
+    (hprocessed : processed < input.length)
+    (hworkSpace : ∀ i, (work₀ i).head ≤ initialSpace)
+    (hreach : (denseInputStepTM counter result).reachesIn t
+      (denseInputBodyStartCfg counter result work₀ out₀ input address processed)
+      d)
+    (htime : t ≤ denseInputStepTime (address - processed)) :
+    d.WithinAuxSpace input.length
+      (denseInputScanSpace initialSpace address) := by
+  have hstart := denseInputBodyStartCfg_withinAuxSpace counter result hne
+    work₀ out₀ input address processed initialSpace hprocessed hworkSpace
+  have hd := hstart.reachesIn hreach
+  apply hd.mono le_rfl
+  have hstep := denseInputStepTime_le_width address processed
+  simp only [denseInputScanSpace]
+  omega
+
+private def denseInputLoopSpaceSpec {n : ℕ}
+    (counter result : Fin n) (hne : counter ≠ result)
+    (work₀ : Fin n → Tape) (out₀ : Tape) (input : List Bool)
+    (address : ℕ) (haddress : address ≠ 0)
+    (hwork : ∀ i, TM.Parked (work₀ i)) (houtput : TM.Parked out₀)
+    (initialSpace : ℕ) (hworkSpace : ∀ i, (work₀ i).head ≤ initialSpace) :
+    TM.ForInputLoopSpaceSpec
+      (denseInputLoopSpec counter result hne work₀ out₀ input address
+        haddress hwork houtput)
+      input.length (denseInputScanSpace initialSpace address) where
+  scanWithin := fun processed hprocessed =>
+    denseInputScanCfg_withinAuxSpace counter result hne work₀ out₀ input
+      address processed initialSpace hprocessed hworkSpace
+  doneWithin := denseInputDoneCfg_withinAuxSpace counter result hne work₀ out₀
+    input address initialSpace hworkSpace
+  bodyPrefixWithin := by
+    intro processed t c hprocessed htime hreach
+    have hbodyRun := denseInputScanTM_body_run counter result hne work₀ out₀
+      input address processed haddress hprocessed hwork houtput
+    obtain ⟨d, hprefix, _hsuffix⟩ :=
+      TM.reachesIn_prefix_internal hbodyRun htime
+    have hcanonical :
+        (TM.forInputTM (denseInputStepTM counter result)).reachesIn t
+          ((denseInputLoopSpec counter result hne work₀ out₀ input address
+            haddress hwork houtput).bodyStartCfg processed)
+          (TM.forInputBodyWrap (denseInputStepTM counter result) d) := by
+      simpa [denseInputLoopSpec] using
+        TM.forInputTM_body_reachesIn_internal
+          (denseInputStepTM counter result) hprefix
+    have hc :=
+      (TM.forInputTM (denseInputStepTM counter result)).reachesIn_right_unique
+        hreach hcanonical
+    rw [hc]
+    simpa [TM.forInputBodyWrap] using
+      denseInputBodyPrefix_withinAuxSpace counter result hne work₀ out₀ input
+        address processed initialSpace t d hprocessed hworkSpace hprefix htime
+
+private theorem denseInputScan_start_eq_scanCfg_zero {n : ℕ}
+    (counter result : Fin n) (hne : counter ≠ result)
+    (input : List Bool) (address : ℕ) (work₀ : Fin n → Tape)
+    (out₀ : Tape) (haddress : address ≠ 0)
+    (hcounter : (work₀ counter).HasBinaryNat address)
+    (hresult : work₀ result = TM.resetBinaryBlank) :
+    { state := (denseInputScanTM counter result).qstart
+      input := (Tape.init (input.map Γ.ofBool)).move Dir3.right
+      work := work₀
+      output := out₀ } =
+      denseInputScanCfg counter result work₀ out₀ input address 0 := by
+  apply Complexity.Cfg.ext
+    (c :=
+      { state := (denseInputScanTM counter result).qstart
+        input := (Tape.init (input.map Γ.ofBool)).move Dir3.right
+        work := work₀
+        output := out₀ })
+    (c' := denseInputScanCfg counter result work₀ out₀ input address 0)
+    rfl
+  · apply Tape.ext
+    · simp [denseInputScanCfg, denseInputTape, Tape.move]
+    · simp [denseInputScanCfg, denseInputTape, Tape.move]
+  · funext i
+    change work₀ i = denseInputWork counter result work₀ input address 0 i
+    by_cases hic : i = counter
+    · subst i
+      rw [denseInputWork_counter counter result hne]
+      simpa [denseInputNatTape] using hcounter.eq_init_move_right
+    · by_cases hir : i = result
+      · subst i
+        rw [denseInputWork_result, hresult]
+        unfold denseInputResultTape
+        rw [if_neg haddress, if_neg (by omega)]
+      · rw [denseInputWork_other counter result work₀ input address 0
+          i hic hir]
+  · rfl
+
+theorem denseInputScanTM_prefix_withinAuxSpace_internal {n : ℕ}
+    (counter result : Fin n) (hne : counter ≠ result)
+    (input : List Bool) (address initialSpace : ℕ)
+    (work₀ : Fin n → Tape) (out₀ : Tape) (haddress : address ≠ 0)
+    (hcounter : (work₀ counter).HasBinaryNat address)
+    (hresult : work₀ result = TM.resetBinaryBlank)
+    (hwork : ∀ i, TM.Parked (work₀ i)) (houtput : TM.Parked out₀)
+    (hworkSpace : ∀ i, (work₀ i).head ≤ initialSpace)
+    (time : ℕ) (current : Complexity.Cfg n
+      (denseInputScanTM counter result).Q)
+    (hreach : (denseInputScanTM counter result).reachesIn time
+      { state := (denseInputScanTM counter result).qstart
+        input := (Tape.init (input.map Γ.ofBool)).move Dir3.right
+        work := work₀
+        output := out₀ } current)
+    (htime : time ≤ denseInputScanTime input.length address) :
+    current.WithinAuxSpace input.length
+      (denseInputScanSpace initialSpace address) := by
+  let spec := denseInputLoopSpec counter result hne work₀ out₀ input address
+    haddress hwork houtput
+  have hstart := denseInputScan_start_eq_scanCfg_zero counter result hne input
+    address work₀ out₀ haddress hcounter hresult
+  have hreach' :
+      (TM.forInputTM (denseInputStepTM counter result)).reachesIn time
+        (spec.scanCfg 0) current := by
+    change (TM.forInputTM (denseInputStepTM counter result)).reachesIn time
+      (denseInputScanCfg counter result work₀ out₀ input address 0) current
+    rw [← hstart]
+    simpa [denseInputScanTM] using hreach
+  have htime' :
+      time ≤ TM.forInputLoopTime
+        (fun processed => denseInputStepTime (address - processed))
+        0 input.length := by
+    simpa [denseInputScanTime] using htime
+  let spaceSpec := denseInputLoopSpaceSpec counter result hne work₀ out₀ input
+    address haddress hwork houtput initialSpace hworkSpace
+  exact spaceSpec.prefix_withinAuxSpace_internal input.length 0 time current
+    (by omega) hreach' htime'
 
 private theorem denseInputResultTape_final_hasBinaryNat
     (input : List Bool) (address : ℕ) (haddress : address ≠ 0) :
@@ -821,26 +1053,6 @@ theorem denseInputScanTM_reachesIn_frame_internal {n : ℕ}
     exact denseInputWork_other counter result work₀ input address input.length
       i hic hir
   · rfl
-
-private theorem denseInputStepTime_le_width (address processed : ℕ) :
-    denseInputStepTime (address - processed) ≤ 2 * address.size + 7 := by
-  by_cases hzero : address - processed = 0
-  · simp [denseInputStepTime, hzero]
-  · by_cases hone : address - processed = 1
-    · have hpred := TM.binaryPredTime_le_internal 0
-      have hsize : 1 ≤ address.size :=
-        Nat.size_pos.mpr (by omega)
-      simp [denseInputStepTime, hone] at hpred ⊢
-      omega
-    · have hpred :=
-        TM.binaryPredTime_le_internal (address - processed - 1)
-      have hwidth : (address - processed).size ≤ address.size :=
-        Nat.size_le_size (Nat.sub_le address processed)
-      rw [denseInputStepTime, if_neg hzero, if_neg hone]
-      have hsucc : address - processed - 1 + 1 = address - processed := by
-        omega
-      rw [hsucc] at hpred
-      omega
 
 private theorem denseInputLoopTime_le_width (inputLength address processed : ℕ) :
     TM.forInputLoopTime

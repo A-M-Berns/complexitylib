@@ -1,0 +1,7 @@
+import
+  Complexitylib.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode.CombineTerm.Defs
+
+open Complexity Complexity.TimeSpaceSimulation.Runtime.NeighborhoodMicrocode
+
+#check CombineTerm.ComputationPackedKernelSpecAt
+#print CombineTerm.ComputationPackedKernelSpecAt

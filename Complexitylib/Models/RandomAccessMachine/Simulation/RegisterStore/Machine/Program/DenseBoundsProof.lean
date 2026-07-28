@@ -13,6 +13,7 @@ import
   Complexitylib.Models.RandomAccessMachine.Simulation.RegisterStore.Machine.EntryUpdate
 import
   Complexitylib.Models.RandomAccessMachine.Simulation.RegisterStore.Machine.DenseInputLookup
+import Complexitylib.Models.TuringMachine.Subroutines.BinaryLength
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Mathlib.Tactic.Linarith
 
@@ -1460,7 +1461,7 @@ theorem denseProgramStepTime_le_envelope_internal {m : ℕ}
     denseStepVolume]
   ring
 
-private theorem denseSnapshot_step_pc_le_resourceMagnitude
+theorem denseSnapshot_step_pc_le_resourceMagnitude_internal
     (program : Program) (input : List Bool)
     (snapshot : DenseOverlay.Snapshot)
     (hpc : snapshot.pc ≤ programResourceMagnitude program) :
@@ -1623,7 +1624,7 @@ private theorem denseProgramHaltTime_le_magnitude {m : ℕ}
   dsimp only [magnitude] at hmagnitude hdispatch hcopy ⊢
   nlinarith
 
-private theorem denseProgramLoopIterationTime_le_product {m : ℕ}
+theorem denseProgramLoopIterationTime_le_product_internal {m : ℕ}
     (tapes : ControlInstructionTapes m) (program : Program)
     (input : List Bool) (snapshot : DenseOverlay.Snapshot)
     (hvalid : DenseOverlay.Valid snapshot.overlay)
@@ -1638,7 +1639,7 @@ private theorem denseProgramLoopIterationTime_le_product {m : ℕ}
   let unit := (magnitude + 1) ^ 2 * volume * (width + 1)
   have hstep := denseProgramStepTime_le_envelope_internal tapes program input
     snapshot hvalid hpc
-  have hnextPc := denseSnapshot_step_pc_le_resourceMagnitude program input
+  have hnextPc := denseSnapshot_step_pc_le_resourceMagnitude_internal program input
     snapshot hpc
   have hhalt := denseProgramHaltTime_le_magnitude tapes program
     (snapshot.step program input).pc hnextPc
@@ -1675,14 +1676,14 @@ theorem denseProgramLoopTime_le_envelope_internal {m : ℕ}
       let width := denseStepWidth program input snapshot
       let currentScale := denseRunScale program input (fuel + 1) snapshot
       let nextScale := denseRunScale program input fuel next
-      have hiteration := denseProgramLoopIterationTime_le_product tapes program
+      have hiteration := denseProgramLoopIterationTime_le_product_internal tapes program
         input snapshot hvalid hpc
       have hnextValid : DenseOverlay.Valid next.overlay := by
         dsimp only [next]
         exact DenseOverlay.Snapshot.step_valid program input snapshot hvalid
       have hnextPc : next.pc ≤ programResourceMagnitude program := by
         dsimp only [next]
-        exact denseSnapshot_step_pc_le_resourceMagnitude program input snapshot hpc
+        exact denseSnapshot_step_pc_le_resourceMagnitude_internal program input snapshot hpc
       have htail := ih next hnextValid hnextPc
       have hvolume : volume ≤ currentScale := by
         dsimp only [volume, currentScale]
@@ -1844,8 +1845,17 @@ private theorem denseProgramInitTime_le_quadratic {m : ℕ}
     denseProgramInitTime tapes input ≤ 1000 * (input.length + 3) ^ 2 := by
   let bound := input.length + 2
   have hbound : 1 ≤ bound := by simp [bound]
-  have hloop := denseInitialLengthLoopTime_le 1 input (input.length + 1)
-    (by omega)
+  have hlengthRaw := TM.binaryLengthTime_le input.length
+  have hinputSize : input.length.size ≤ input.length :=
+    size_le_self input.length
+  have hlength :
+      TM.binaryLengthTime input.length ≤
+        2 + input.length * (2 * input.length + 4) :=
+    le_trans hlengthRaw (by nlinarith)
+  have hsuccInputRaw := TM.binarySuccTime_le input.length
+  have hsuccInput :
+      TM.binarySuccTime input.length ≤ 2 * input.length + 2 :=
+    le_trans hsuccInputRaw (by nlinarith)
   have htagBits : (input.length + 1).bits.length ≤ bound := by
     simpa only [Nat.size_eq_bits_len] using
       (le_trans (size_le_self (input.length + 1)) (by
@@ -1873,7 +1883,7 @@ private theorem denseProgramInitTime_le_quadratic {m : ℕ}
   dsimp only [bound] at hrewind habi htagBits hbound ⊢
   nlinarith
 
-private theorem denseProgramOutputTime_le_encoded {m : ℕ}
+theorem denseProgramOutputTime_le_encoded_internal {m : ℕ}
     (tapes : ControlInstructionTapes m) (input : List Bool)
     (overlay : Store) (hvalid : DenseOverlay.Valid overlay) :
     denseProgramOutputTime tapes input overlay ≤
@@ -2027,7 +2037,7 @@ theorem denseProgramDecisionTime_le_envelope_internal {m : ℕ}
     exact DenseOverlay.Snapshot.run_valid program input fuel
       (DenseOverlay.Snapshot.initial input)
         (DenseOverlay.Snapshot.initial_valid input)
-  have houtputRaw := denseProgramOutputTime_le_encoded tapes input
+  have houtputRaw := denseProgramOutputTime_le_encoded_internal tapes input
     final.overlay hfinalValid
   have hfinalEncoded := denseFinalEncodedStoreLength_le program input fuel
   have houtput : denseProgramOutputTime tapes input final.overlay ≤

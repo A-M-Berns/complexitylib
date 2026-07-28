@@ -1672,6 +1672,126 @@ so that the simulation's own workspace is charged.
   - [x] Compose one-step correctness into a fixed halt-aware decision loop.
   - [x] Package the complete simulator as `RAM.P ⊆ P` and hence `RAM.P = P`.
 
+### M7. Williams's square-root-space simulation
+
+**Goal.** Formalize Williams's theorem that, for every `t(n) ≥ n`,
+`TIME[t(n)] ⊆ SPACE[√(t(n) log t(n))]` on multitape Turing machines. The
+bracketed bound is asymptotic: the library theorem should expose a concrete
+space function first and then package its `BigO` corollary.
+
+**Prerequisites.** N0 resource accounting and machine composition, the M4
+space-class surface, executable finite-field arithmetic and encodings, and an
+implicit-input interface whose oracle calls carry concrete all-prefix space
+bounds.
+
+**Current progress.** `Complexitylib.TreeEvaluation` contains the first
+algebraic semantic layer. It defines finite `d`-ary trees and an executable
+Cook--Mertz accumulator with exactly `d + 1` reusable value registers. The
+public theorem `CookMertz.accumulate_eq_addAt` proves the full catalytic frame:
+one selected register gains the scaled root value and every other register is
+restored. The finite-field layer proves
+`∑ a : Kˣ, P(a) = -P(0)` below degree `|K| - 1`, proves that affine line
+restriction does not increase multivariate total degree, and derives
+`CookMertz.evaluate_lowDegreePolynomial` for coordinatewise low-degree node
+functions. `TreeEval.OrderedDAG` now represents a compact fixed-fan-in
+computation graph in a structural topological order, proves that unrolling
+preserves values and has height at most the graph size, and supplies a direct
+well-founded Cook--Mertz traversal which queries DAG nodes without constructing
+the potentially exponential tree. `TreeEval.BoundedFanIn` now models the
+paper's relaxed node-dependent fan-in `2 ≤ k ≤ d` for both trees and ordered
+DAGs. Its exact-arity translation duplicates a genuine child in padding
+positions and ignores those inputs; the formal correspondence preserves tree
+values and heights and DAG values and dependency depths exactly. The
+prime-field Cook--Mertz correctness theorem transfers across this translation.
+The Boolean-extension layer constructs the full multilinear extension of any
+Boolean node, proves Boolean-cube agreement, individual degree at most one and
+total degree at most `d * b`, and lifts an arbitrary Boolean ordered DAG to a
+certified low-degree polynomial DAG without changing its embedded values. The
+separate binary-code evaluator enumerates Boolean assignments on demand with a
+tail-recursive accumulator, is proved extensionally equal to the semantic
+polynomial at every field-valued point, and is now the actual node callback
+stored by the lifted DAG. Bertrand's postulate supplies a prime modulus in
+`(d * b + 1, 2 * (d * b + 1)]`; its `ZMod` field satisfies the exact degree
+inequality, has logarithmic modulus width, and has an explicit verified list
+of all nonzero residues. `Complexitylib.TimeSpaceSimulation` begins the
+machine-level layer: `TM.configurationAt` gives the frozen deterministic run,
+and `TM.BlockRespectingOnInput` states the half-open block-residence property
+for every named input, work, and output head. Its public theorems prove exact
+active-block residency at both within-block offsets and arbitrary times. The
+implicit computation-graph topology performs a finite greatest-prior-visit
+search, exposes exactly `2 * (workTapeCount + 2)` Fin-indexed predecessors per
+computation node, proves every edge strictly decreases time-block rank, and
+unrolls to a semantic tree of height at most that rank. These are Lean
+execution and semantic correctness theorems; they do not yet construct the
+block-respecting normalized machine, define and validate node contents and
+local block simulations, provide uniform executable prime search and modular
+arithmetic in the concrete Turing-machine model, prove the all-prefix
+workspace bound, or derive the time-to-space class inclusion.
+
+**Staged milestones.**
+
+- [x] Define the tree-evaluation semantic core and ordinary bottom-up value.
+- [x] Implement the signed Cook--Mertz `ADD` procedure over an explicit
+  enumeration of the nonzero field elements.
+- [x] Prove exact accumulator correctness, including restoration of all
+  catalytic scratch registers.
+- [x] Prove the finite-field interpolation identity, affine-restriction degree
+  bound, and the low-degree-polynomial tree corollary.
+- [x] Define structurally acyclic fixed-fan-in computation DAGs, prove that
+  implicit unrolling preserves values and dependency height, and evaluate them
+  directly with the Cook--Mertz accumulator without materializing the tree.
+- [x] Define variable bounded-fan-in trees and ordered DAGs for
+  `2 ≤ k ≤ d`, and prove an exact-arity padding theorem preserving values,
+  heights, and dependency depths.
+- [ ] Add the machine-level bounded-height/path encoding used by the implicit
+  evaluator, with concrete bit-width and all-prefix workspace bounds.
+- [~] Formalize Boolean multilinear/low-degree extensions of `b`-bit node
+  functions, with an executable evaluator and a concrete workspace bound.
+  *The semantic polynomial construction, Boolean-cube agreement,
+  multilinearity, `d * b` total-degree bound, and value-preserving lift to
+  low-degree ordered DAGs are complete. An executable binary-code evaluator
+  now generates assignments on demand and agrees with the polynomial
+  extension at every ring-valued point. A factor-two prime-field choice and
+  explicit nonzero-residue enumeration are also complete. Uniform prime
+  search, modular arithmetic, the concrete Turing-machine implementation, and
+  its workspace theorem remain.*
+- [ ] Define implicit tree instances whose leaf bits, child relation, and node
+  functions are generated on demand; compile the evaluator to the concrete TM
+  model and prove `O(d * b + h * log (d * b))` all-prefix decision space.
+- [ ] Prove a block-respecting normalization theorem for the library's
+  multitape machine convention, with block length between `log t` and `t` and
+  only linear time overhead.
+  *The source-faithful semantic predicate, total frozen-run configuration,
+  named-tape block extraction, and exact head-residency consequences are
+  complete. The normalized machine construction, semantic equivalence, and
+  linear-overhead proof remain.*
+- [~] Define the bounded-indegree computation graph of a block-respecting run,
+  prove that each node content depends only on its predecessors, and give
+  space-bounded procedures for implicit edge and node-function queries.
+  *The executable greatest-prior-visit topology, exact `2p` predecessor
+  indexing, strict rank decrease, recursive graph semantics, value-preserving
+  tree unrolling, and height-at-most-time-block-rank theorem are complete.
+  Concrete node contents, local block-transition correctness, guessed-graph
+  FAIL semantics, and TM workspace bounds remain.*
+- [ ] Unroll the computation graph into a series of implicit tree-evaluation
+  instances and prove that their root values recover the final decision bit.
+- [ ] Prove the arithmetic balancing bound for
+  `b = Θ(√(t log t))`, including ceilings and the small-input cases.
+- [ ] Construct the fixed simulator TM, prove its concrete all-prefix space
+  bound, and derive the `DTIME`-to-`DSPACE` class theorem without assuming time
+  constructibility.
+
+**Formalization hazards.** A Lean tree value is already resident data, so
+correctness of a recursive Lean function is not evidence for the claimed space
+bound; the tree must remain implicit and every generator call must be charged.
+Likewise, a `Fintype` sum is not an executable enumeration until an explicit
+list and its completeness certificate are supplied. The paper uses
+characteristic two to erase signs, while the reusable algebraic layer states
+the signed identity over arbitrary finite fields. Finally, robustness between
+machine models cannot be invoked as prose: the theorem must land on
+`TM.DecidesInSpace` under this library's read-only-input and charged-output
+conventions.
+
 ## Long-term tracks
 
 ### L1. Sum-check and `IP = PSPACE`

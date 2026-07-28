@@ -120,6 +120,31 @@ theorem denseInputScanTM_reachesIn_frame {n : ℕ}
   denseInputScanTM_reachesIn_frame_internal counter result hne input address
     work₀ out₀ haddress hcounter hresult hwork houtput
 
+/-- Every prefix of the exact immutable-input scan stays within one
+logarithmic countdown budget. In particular, the space bound does not
+multiply by the number of input symbols scanned. -/
+theorem denseInputScanTM_prefix_withinAuxSpace {n : ℕ}
+    (counter result : Fin n) (hne : counter ≠ result)
+    (input : List Bool) (address initialSpace : ℕ)
+    (work₀ : Fin n → Tape) (out₀ : Tape) (haddress : address ≠ 0)
+    (hcounter : (work₀ counter).HasBinaryNat address)
+    (hresult : work₀ result = TM.resetBinaryBlank)
+    (hwork : ∀ i, TM.Parked (work₀ i)) (houtput : TM.Parked out₀)
+    (hworkSpace : ∀ i, (work₀ i).head ≤ initialSpace)
+    (time : ℕ) (current : Complexity.Cfg n
+      (denseInputScanTM counter result).Q)
+    (hreach : (denseInputScanTM counter result).reachesIn time
+      { state := (denseInputScanTM counter result).qstart
+        input := (Tape.init (input.map Γ.ofBool)).move Dir3.right
+        work := work₀
+        output := out₀ } current)
+    (htime : time ≤ denseInputScanTime input.length address) :
+    current.WithinAuxSpace input.length
+      (denseInputScanSpace initialSpace address) :=
+  denseInputScanTM_prefix_withinAuxSpace_internal counter result hne input
+    address initialSpace work₀ out₀ haddress hcounter hresult hwork houtput
+    hworkSpace time current hreach htime
+
 /-- Dense-bank lookup is linear in the public-input length and logarithmic in
 the queried positive address. -/
 theorem denseInputScanTime_le_width (inputLength address : ℕ) :

@@ -6,6 +6,7 @@ Authors: Samuel Schlesinger
 import
   Complexitylib.Models.RandomAccessMachine.Simulation.RegisterStore.Machine.Program.Init.Defs
 import Complexitylib.Models.TuringMachine.Subroutines
+import Complexitylib.Models.TuringMachine.Subroutines.BinaryLength.Defs
 
 /-!
 # Dense-overlay public-input initialization -- definitions
@@ -89,25 +90,35 @@ def denseProgramSnapshotWork {n : ℕ} (tapes : ControlInstructionTapes n)
     (snapshot : DenseOverlay.Snapshot) : Fin (n + 1) → Tape :=
   programSnapshotWork tapes { pc := snapshot.pc, store := snapshot.overlay }
 
-/-- Count the input, emit its positive `R₀` tag, install the sparse ABI, and
-rewind the immutable input bank to cell one. -/
+/-- Count the input with the width-certified binary length routine, increment
+the result to its positive overlay tag, seed the fixed value-one source, emit
+the lone `R₀` entry, install the sparse ABI, and rewind the immutable input
+bank to cell one. -/
 def denseProgramInitTM {n : ℕ} (tapes : ControlInstructionTapes n) :
     TM (n + 1) :=
-  TM.seqTM (initialSetupTM tapes)
-    (TM.seqTM (denseInitialLengthLoopTM tapes)
-      (TM.seqTM (initialLengthEmitTM tapes)
-        (TM.seqTM (initialAbiInstallTM tapes) TM.rewindInputTM)))
+  TM.seqTM (TM.binaryLengthTM tapes.liftedLhs)
+    (TM.seqTM (TM.binarySuccTM tapes.liftedLhs)
+      (TM.seqTM (TM.binarySuccTM tapes.lifted.data.rhs)
+        (TM.seqTM (initialLengthEmitTM tapes)
+          (TM.seqTM (initialAbiInstallTM tapes) TM.rewindInputTM))))
 
 /-- Exact compositional time budget for dense-overlay initialization. -/
 def denseProgramInitTime {n : ℕ} (tapes : ControlInstructionTapes n)
     (input : List Bool) : ℕ :=
-  (1 + 1 + (TM.binarySuccTime 0 + 1 + TM.binarySuccTime 0)) + 1 +
-    (denseInitialLengthLoopTime 1 input + 1 +
-      ((rewindEntryEncodeRestoreTime (0, input.length + 1) + 1 +
-          TM.binarySuccTime 0) + 1 +
-        (initialAbiInstallTime tapes (denseProgramInitialStore input)
-            (input.length + 1) + 1 +
-          (input.length + 1 + 2))))
+  TM.binaryLengthTime input.length + 1 +
+    (TM.binarySuccTime input.length + 1 +
+      (TM.binarySuccTime 0 + 1 +
+        ((rewindEntryEncodeRestoreTime (0, input.length + 1) + 1 +
+            TM.binarySuccTime 0) + 1 +
+          (initialAbiInstallTime tapes (denseProgramInitialStore input)
+              (input.length + 1) + 1 +
+            (input.length + 1 + 2)))))
+
+/-- Width-linear auxiliary-space budget for dense initialization. The public
+input scan is free; the charged work consists of binary counters and the lone
+serialized overlay entry. -/
+def denseProgramInitSpace (inputLength : ℕ) : ℕ :=
+  64 * (bitlen (inputLength + 1) + 1)
 
 end Machine
 end RegisterStore

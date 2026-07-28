@@ -12,6 +12,8 @@ import Complexitylib.SAT
 import Complexitylib.Circuits
 import Complexitylib.BooleanAnalysis
 import Complexitylib.DescriptiveComplexity
+import Complexitylib.TreeEvaluation
+import Complexitylib.TimeSpaceSimulation
 
 /-!
 # Complexitylib
@@ -64,4 +66,38 @@ hardwiring and its advice corollary live in
 **Barrington's theorem.** `Complexity.barrington_equivalence` identifies
 logarithmic-depth Boolean formula families with polynomial-length width-`5`
 permutation branching-program families.
+
+**Cook--Mertz tree-evaluation kernel.**
+- `Complexity.TreeEval.CookMertz.accumulate_eq_addAt` proves exact catalytic
+  accumulator correctness and restoration of all scratch registers.
+- `Complexity.TreeEval.CookMertz.evaluate_lowDegreePolynomial` derives
+  correctness for coordinatewise low-degree polynomial node functions from
+  the finite-field interpolation identity.
+- `Complexity.TreeEval.OrderedDAG.cookMertzEvaluate_eq_value` evaluates a
+  compact, structurally acyclic computation DAG directly, without constructing
+  its potentially exponential semantic unrolling.
+- `Complexity.TreeEval.OrderedDAG.cookMertzEvaluate_liftBoolean_eq_embed`
+  evaluates an arbitrary Boolean ordered DAG through coordinatewise
+  multilinear extensions when the field is larger than the node degree; the
+  lifted node callback enumerates Boolean assignments on demand and stores no
+  multivariate polynomial.
+- `Complexity.TreeEval.OrderedDAG.cookMertzEvaluate_liftBoolean_primeField_eq_embed`
+  chooses an explicit
+  prime-field certificate and enumerates its nonzero residues exactly once.
+- `Complexity.TreeEval.BoundedFanIn.DAG.cookMertzEvaluate_liftBoolean_pad_primeField_eq_embed`
+  extends that result to Williams's variable-fan-in interface
+  (`2 ≤ k ≤ d`) through padding that preserves values and dependency depth
+  exactly.
+
+**Williams time-to-space simulation (in progress).**
+- `Complexity.TM.BlockRespectingOnInput` states the half-open time-block
+  residence property for every named input/work/output head.
+- `Complexity.TM.BlockRespectingOnInput.head_in_timeBlock` proves that every
+  such head lies in its uniquely active tape block at an arbitrary time.
+- `Complexity.TimeSpaceSimulation.ComputationGraph.predecessorAt_rank_lt`
+  gives the implicit graph exactly `2 * (workTapeCount + 2)` Fin-indexed
+  predecessor slots and proves every edge decreases time-block rank.
+- `Complexity.TimeSpaceSimulation.ComputationGraph.height_unroll_computation_le`
+  bounds the induced semantic tree height by the number of processed time
+  blocks.
 -/
