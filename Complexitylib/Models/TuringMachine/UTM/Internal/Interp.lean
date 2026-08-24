@@ -258,6 +258,26 @@ theorem exists_wf_desc_decidesInTime {L : Language} {T : ℕ → ℕ} (M : TM 1)
     ∃ d : TMDesc, d.WF ∧ d.toTM.DecidesInTime L T :=
   ⟨M.descOfTM, M.descOfTM_wf, M.descOfTM_decidesInTime h⟩
 
+/-- **Extraction fidelity for function computation**: the interpreted description of a
+machine computes the same function in exactly the same time. The embedding `descCfg` only
+relabels the state, carrying the input, work and output tapes across verbatim, so the
+output word is preserved on the nose. -/
+theorem descOfTM_computesInTime {f : List Bool → List Bool} {T : ℕ → ℕ}
+    (h : M.ComputesInTime f T) :
+    M.descOfTM.toTM.ComputesInTime f T := by
+  intro x
+  obtain ⟨c', t, ht, hreach, hhalt, hout⟩ := h x
+  refine ⟨M.descCfg c', t, ht, ?_, ?_, hout⟩
+  · rw [← descOfTM_initCfg]; exact M.descOfTM_reachesIn hreach
+  · rwa [descOfTM_halted]
+
+/-- Every function computable by a single-work-tape machine is computable by an interpreted
+*well-formed description* in the same time bound. -/
+theorem exists_wf_desc_computesInTime {f : List Bool → List Bool} {T : ℕ → ℕ} (M : TM 1)
+    (h : M.ComputesInTime f T) :
+    ∃ d : TMDesc, d.WF ∧ d.toTM.ComputesInTime f T :=
+  ⟨M.descOfTM, M.descOfTM_wf, M.descOfTM_computesInTime h⟩
+
 end TM
 
 end Complexity
