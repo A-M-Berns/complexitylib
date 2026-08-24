@@ -430,8 +430,8 @@ theorem inputLengthPlusOneCounterTM_scan_start_initializes_counter
         (by simp [TM.step, inputLengthPlusOneCounterTM])).work counterIdx).HasUnaryPrefix 0 := by
   simp [TM.step, inputLengthPlusOneCounterTM, hinp, counterPreserveWork,
     counterIdleDirs, hcounter]
-  simpa [Tape.writeAndMove, Tape.write] using
-    Tape.init_nil_move_right_hasUnaryPrefix_zero
+  simp only [Tape.writeAndMove, Tape.write]
+  exact Tape.init_nil_move_right_hasUnaryPrefix_zero
 
 /-- In the `scan` phase, reading blank on the input moves the machine to the
     `rewind` phase. -/
@@ -670,9 +670,9 @@ private theorem inputLengthPlusOneCounterTM_start_step
   · have hcounter_read : (work counterIdx).read = Γ.start := by
       rw [hcounter]
       simp [Tape.read, Tape.init]
-    simpa [counterPreserveWork, counterIdleDirs, hcounter, hcounter_read,
-      Tape.writeAndMove, Tape.write] using
-      Tape.init_nil_move_right_hasUnaryPrefix_zero
+    simp only [counterPreserveWork, counterIdleDirs, hcounter, hcounter_read,
+      Tape.writeAndMove, Tape.write]
+    exact Tape.init_nil_move_right_hasUnaryPrefix_zero
   · simp [counterIdleDirs, hcounter, Tape.writeAndMove, Tape.move_cells,
       Tape.write, Tape.init]
 
@@ -939,7 +939,7 @@ theorem inputLengthPlusOneCounterTM_hoareTime
   refine ⟨c4, 1 + x.length + 1 + (x.length + 2 + 1), ?_, ?_, hhalt4, hpost⟩
   · simp [inputLengthPlusOneCounterTime]
     omega
-  · simpa [c0] using hreach_04
+  · exact hreach_04
 
 /-- Started-tape variant of `inputLengthPlusOneCounterTM_hoareTime`: if the
 input is already positioned at cell `1` and the counter tape is the started
@@ -1020,7 +1020,7 @@ theorem inputLengthPlusOneCounterTM_started_hoareTime
     ⟨hcounter4, hcell04, hnostart4⟩⟩
   · simp [inputLengthPlusOneCounterTime]
     omega
-  · simpa [c0] using hreach_04
+  · exact hreach_04
 
 /-- Started-tape variant of the unary counter builder that also records the
 final input position. The input cells are unchanged, and the input head ends at
@@ -1107,7 +1107,7 @@ theorem inputLengthPlusOneCounterTM_started_tracksInput_hoareTime
     ⟨hinput4_cells, hinput4_head, hcounter4, hcell04, hnostart4⟩⟩
   · simp [inputLengthPlusOneCounterTime]
     omega
-  · simpa [c0] using hreach_04
+  · exact hreach_04
 
 /-- One-step preservation of a passive started Boolean work tape distinct from
 the active counter tape. -/
