@@ -343,4 +343,199 @@ theorem TM.exists_singleTape_decidesInTime {k : ℕ} (M : TM k) {L : Language} {
         (NTM.singleTapeSim_decidesInTime M.toNTM hk hN)
         (NTM.singleTapeSim_rejectsWithZero hk hN.1 hrej)⟩
 
+/-! ## Function computation
+
+`TM.exists_singleTape_decidesInTime` above projects the simulated machine's output tape onto
+its verdict cell. The correspondence invariant it rests on is stronger than that:
+`NTM.SingleTape.Corr.outputEq` is *full output-tape equality*, so the same simulation
+transports an arbitrary finite output word, not merely an accept bit.
+
+The lemmas below are the whole-tape forms of the cell-1 lemmas above, and
+`TM.exists_singleTape_computesInTime` is the resulting function-shaped companion of
+`TM.exists_singleTape_decidesInTime`, at the identical time bound. No new simulation
+mathematics is introduced — only the exposure changes.
+
+The `RejectsWithZero` output discipline the decider conversion needs has no counterpart
+here: `ComputesInTime` already pins the whole output tape, so nothing has to be said
+separately about a rejecting case. -/
+
+namespace NTM.SingleTape
+
+/-- Writing back the read symbol preserves the whole tape's contents: away from cell 0 it
+writes exactly what is already there, and at cell 0 `Tape.write` is a structural no-op.
+Whole-tape form of `writeAndMove_readBack_cell1`. -/
+private theorem writeAndMove_readBack_cells (t : Tape) (d : Dir3)
+    (hns : t.head ≠ 0 → t.read ≠ Γ.start) :
+    (t.writeAndMove ((TM.readBackWrite t.read : Γw) : Γ) d).cells = t.cells := by
+  have hcells : (t.writeAndMove ((TM.readBackWrite t.read : Γw) : Γ) d).cells
+      = (t.write ((TM.readBackWrite t.read : Γw) : Γ)).cells := by
+    cases d <;> rfl
+  rw [hcells]
+  by_cases h0 : t.head = 0
+  · rw [Tape.write, if_pos h0]
+  · rw [TM.toΓ_readBackWrite_of_ne_start (hns h0), Tape.write, if_neg h0]
+    exact Function.update_eq_self _ _
+
+/-- Halt-step correspondence, whole-tape version: when `N` has halted, the simulator's one
+halt step lands with its output tape's contents exactly `N`'s. Whole-tape form of
+`haltCorr_cell1`. -/
+private theorem haltCorr_cells {k : ℕ} (N : NTM k) {M : ℕ}
+    {c1 : Cfg 1 (SimQ k N.Q)} {c : Cfg k N.Q}
+    (hcorr : Corr N M c1 c) (hh : c.state = N.qhalt) :
+    ((singleTapeSim N).trace 1 (fun _ => false) c1).output.cells = c.output.cells := by
+  have hst : c1.state = SimQ.run N.qhalt := by rw [hcorr.state, hh]
+  have hout : ((singleTapeSim N).trace 1 (fun _ => false) c1).output
+      = c1.output.writeAndMove ((TM.readBackWrite c1.output.read : Γw) : Γ)
+          (TM.idleDir c1.output.read) := by
+    simp only [NTM.trace, singleTapeSim, simDelta, hst, SimQ.run, SimQ.halt,
+      reduceCtorEq, ↓reduceIte]
+  have hns : c1.output.head ≠ 0 → c1.output.read ≠ Γ.start := by
+    intro h0
+    have h0' : c.output.head ≠ 0 := by rw [← hcorr.outputEq]; exact h0
+    show c1.output.cells c1.output.head ≠ Γ.start
+    rw [hcorr.outputEq]
+    exact hcorr.outputWf _ (Nat.one_le_iff_ne_zero.mpr h0')
+  rw [hout, writeAndMove_readBack_cells _ _ hns, hcorr.outputEq]
+
+/-- Reverse halting, whole-tape version: if the `N`-run induced by an arbitrary simulator
+stream halts within `Tn` steps, the simulator halts within the budget with the same output
+tape contents. Whole-tape form of `halts_rev_cell1`. -/
+private theorem halts_rev_cells {k : ℕ} (N : NTM k) (hk : 1 ≤ k) (ch : ℕ → Bool)
+    (x : List Bool) (Tn : ℕ)
+    (hhalt : (N.trace Tn (fun i => inducedChoices k ch i.val) (N.initCfg x)).state
+      = N.qhalt) :
+    ∃ m ≤ Tn * macroBound k Tn + 1,
+      (singleTapeSim N).halted
+        ((singleTapeSim N).trace m (fun i => ch i.val) ((singleTapeSim N).initCfg x)) ∧
+      ((singleTapeSim N).trace m (fun i => ch i.val)
+          ((singleTapeSim N).initCfg x)).output.cells
+        = (N.trace Tn (fun i => inducedChoices k ch i.val)
+            (N.initCfg x)).output.cells := by
+  classical
+  have hex : ∃ t, (N.trace t (fun i => inducedChoices k ch i.val) (N.initCfg x)).state
+      = N.qhalt := ⟨Tn, hhalt⟩
+  have ht0le : Nat.find hex ≤ Tn := Nat.find_min' hex hhalt
+  have hth := Nat.find_spec hex
+  have hrun : ∀ s, s < Nat.find hex →
+      (N.trace s (fun i => inducedChoices k ch i.val) (N.initCfg x)).state ≠ N.qhalt :=
+    fun s hs => Nat.find_min hex hs
+  have hcorr := corr_trace_macroPos N hk ch x (Nat.find hex) hrun
+  have hhalted := (halted_of_corr N hcorr hth).1
+  have hcell := haltCorr_cells N hcorr hth
+  have hstep : (singleTapeSim N).trace 1
+      (fun j : Fin 1 => ch (macroPos k (Nat.find hex) + j.val))
+      ((singleTapeSim N).trace (macroPos k (Nat.find hex)) (fun i => ch i.val)
+        ((singleTapeSim N).initCfg x))
+      = (singleTapeSim N).trace 1 (fun _ => false)
+          ((singleTapeSim N).trace (macroPos k (Nat.find hex)) (fun i => ch i.val)
+            ((singleTapeSim N).initCfg x)) := by
+    refine (trace_congr_choices N 1 (fun _ => false)
+      (fun j => ch (macroPos k (Nat.find hex) + j)) _ ?_).symm
+    intro i hi hgather _
+    obtain rfl : i = 0 := by omega
+    obtain ⟨d, hd⟩ := hgather
+    have hd' : ((singleTapeSim N).trace (macroPos k (Nat.find hex)) (fun i => ch i.val)
+        ((singleTapeSim N).initCfg x)).state = SimQ.gather d := hd
+    rw [hcorr.state] at hd'
+    exact absurd hd'.symm (by simp [SimQ.run, SimQ.gather, reduceCtorEq])
+  have hsplit : (singleTapeSim N).trace (macroPos k (Nat.find hex) + 1) (fun i => ch i.val)
+      ((singleTapeSim N).initCfg x)
+      = (singleTapeSim N).trace 1 (fun _ => false)
+          ((singleTapeSim N).trace (macroPos k (Nat.find hex)) (fun i => ch i.val)
+            ((singleTapeSim N).initCfg x)) := by
+    rw [(singleTapeSim N).trace_add_fun (macroPos k (Nat.find hex)) 1 ch]
+    exact hstep
+  have hfreeze : N.trace Tn (fun i => inducedChoices k ch i.val) (N.initCfg x)
+      = N.trace (Nat.find hex) (fun i => inducedChoices k ch i.val) (N.initCfg x) :=
+    N.trace_mono ht0le (fun i => rfl) hth
+  refine ⟨macroPos k (Nat.find hex) + 1, ?_, ?_, ?_⟩
+  · have h1 := macroPos_le_mul_macroBound k (Nat.find hex)
+    have h2 : Nat.find hex * macroBound k (Nat.find hex) ≤ Tn * macroBound k Tn :=
+      Nat.mul_le_mul ht0le (macroBound_mono ht0le)
+    omega
+  · rw [hsplit]; exact hhalted
+  · rw [hsplit, hfreeze]; exact hcell
+
+end NTM.SingleTape
+
+namespace NTM
+
+/-- **The single-tape simulator carries an arbitrary output word.** Whole-tape companion of
+`singleTapeSim_decidesInTime`: the simulator halts within the overhead bound with `N`'s own
+output tape contents, so any `Tape.HasOutput` claim about `N`'s halted output transports. -/
+theorem singleTapeSim_hasOutput {k : ℕ} {N : NTM k} (hk : 1 ≤ k)
+    {T : ℕ → ℕ} (hN : N.AllPathsHaltIn T) (x y : List Bool)
+    (hy : ∀ choices : Fin (T x.length) → Bool,
+      (N.trace (T x.length) choices (N.initCfg x)).output.HasOutput y)
+    (choices : Fin (singleTapeSimTime k T x.length) → Bool) :
+    (singleTapeSim N).halted
+        ((singleTapeSim N).trace (singleTapeSimTime k T x.length) choices
+          ((singleTapeSim N).initCfg x)) ∧
+      ((singleTapeSim N).trace (singleTapeSimTime k T x.length) choices
+        ((singleTapeSim N).initCfg x)).output.HasOutput y := by
+  classical
+  set ch : ℕ → Bool := fun j =>
+    if h : j < singleTapeSimTime k T x.length then choices ⟨j, h⟩ else false with hch
+  have hhaltN : (N.trace (T x.length)
+      (fun i => SingleTape.inducedChoices k ch i.val) (N.initCfg x)).state = N.qhalt :=
+    hN x _
+  obtain ⟨m, hm, hhalted, hcell⟩ :=
+    SingleTape.halts_rev_cells N hk ch x (T x.length) hhaltN
+  have hle : m ≤ singleTapeSimTime k T x.length :=
+    le_trans hm (SingleTape.mul_macroBound_succ_le k (T x.length) x.length)
+  have hagree : ∀ i : Fin m, choices ⟨i.val, lt_of_lt_of_le i.isLt hle⟩ = ch i.val := by
+    intro i
+    simp only [hch]
+    rw [dif_pos (lt_of_lt_of_le i.isLt hle)]
+  rw [(singleTapeSim N).trace_mono hle hagree hhalted]
+  exact ⟨hhalted, (Tape.hasOutput_congr hcell y).mpr (hy _)⟩
+
+end NTM
+
+/-- **Single-tape reduction for function computation** (the function-shaped companion of
+`TM.exists_singleTape_decidesInTime`, at the identical time bound). Every function computed
+by a `k`-work-tape DTM within `T` is computed by a single-work-tape DTM within
+`singleTapeSimTime k T = fun n => 16 * (k + 1) * (T n + n + 1) ^ 2`.
+
+Chain: embed (`toNTM`), simulate (`singleTapeSim`, or `pad0` for `k = 0`), convert back
+(`toTM`) via determinism — the same route as the decider version, with the accept bit
+replaced by the whole output tape throughout. -/
+theorem TM.exists_singleTape_computesInTime {k : ℕ} (M : TM k)
+    {f : List Bool → List Bool} {T : ℕ → ℕ} (h : M.ComputesInTime f T) :
+    ∃ M₁ : TM 1, M₁.ComputesInTime f (NTM.singleTapeSimTime k T) := by
+  have hdet : M.toNTM.Deterministic := M.toNTM_deterministic
+  -- every path of the embedded NTM ends at `M`'s halted configuration
+  have hN : M.toNTM.AllPathsHaltIn T := by
+    intro x choices
+    obtain ⟨c', t, hle, hreach, hhalt, -⟩ := h x
+    change (M.toNTM.trace (T x.length) choices (M.initCfg x)).state = M.qhalt
+    rw [M.toNTM_trace_of_reachesIn hreach hhalt hle choices]
+    exact hhalt
+  have hy : ∀ (x : List Bool) (choices : Fin (T x.length) → Bool),
+      (M.toNTM.trace (T x.length) choices (M.initCfg x)).output.HasOutput (f x) := by
+    intro x choices
+    obtain ⟨c', t, hle, hreach, hhalt, hout⟩ := h x
+    rw [M.toNTM_trace_of_reachesIn hreach hhalt hle choices]
+    exact hout
+  rcases Nat.eq_zero_or_pos k with rfl | hk
+  · refine ⟨(NTM.pad0 M.toNTM).toTM, fun x => ?_⟩
+    obtain ⟨hs, -, ho⟩ :=
+      NTM.pad0_trace_init M.toNTM x (T x.length) (fun _ => false)
+    obtain ⟨t, htm, hreach⟩ :=
+      (NTM.pad0_deterministic hdet).toTM_reachesIn_trace (T x.length) (fun _ => false)
+        ((NTM.pad0 M.toNTM).initCfg x)
+    refine ⟨_, t, le_trans htm (le_singleTapeSimTime 0 T x.length), hreach, ?_, ?_⟩
+    · show ((NTM.pad0 M.toNTM).trace (T x.length) (fun _ => false)
+          ((NTM.pad0 M.toNTM).initCfg x)).state = _
+      rw [hs]; exact hN x _
+    · rw [ho]; exact hy x _
+  · refine ⟨(NTM.singleTapeSim M.toNTM).toTM, fun x => ?_⟩
+    obtain ⟨hhalted, hout⟩ :=
+      NTM.singleTapeSim_hasOutput hk hN x (f x) (hy x) (fun _ => false)
+    obtain ⟨t, htm, hreach⟩ :=
+      (NTM.singleTapeSim_deterministic hdet).toTM_reachesIn_trace
+        (NTM.singleTapeSimTime k T x.length) (fun _ => false)
+        ((NTM.singleTapeSim M.toNTM).initCfg x)
+    exact ⟨_, t, htm, hreach, hhalted, hout⟩
+
 end Complexity
