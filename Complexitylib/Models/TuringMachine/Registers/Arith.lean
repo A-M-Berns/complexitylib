@@ -7,6 +7,7 @@ Authors: Samuel Schlesinger
 module
 public import Complexitylib.Models.TuringMachine.Registers.ForReg
 public import Complexitylib.Models.TuringMachine.Registers.RegisterOps
+public import Complexitylib.Models.TuringMachine.Registers.DecReg
 
 /-!
 # Derived register arithmetic
@@ -100,6 +101,85 @@ theorem addIntoTM_hoareTime (src dst : Fin n) (hne : src ≠ dst) (a b : ℕ)
       Function.update_eq_self]
   exact hrule.weaken_pre (fun inp work out h => by
     show EmitPred inp₀ (Function.update work₀ dst (regTape (b + 0))) ys inp work out
+    rw [hw0]
+    exact h)
+
+
+/-- `dst := dst - src` (truncated). The mirror of `addIntoTM`: the same bounded loop over
+    `src`, running `decRegTM` on `dst` instead of `incRegTM`. -/
+def subIntoTM (src dst : Fin n) : TM n := forRegTM (decRegTM dst) src
+
+/-- **`subIntoTM` Hoare specification.** From `regTape a` in `src` and `regTape b` in
+    `dst`, reach `regTape (b - a)` in `dst`; `src` and everything else untouched.
+
+    Truncation is inherited from `decRegTM`, which floors at zero, so no separate
+    underflow test is needed: the loop simply decrements a register already at `0`. -/
+theorem subIntoTM_hoareTime (src dst : Fin n) (hne : src ≠ dst) (a b : ℕ)
+    (inp₀ : Tape) (work₀ : Fin n → Tape) (ys : List Bool)
+    (hinp₀ : Parked inp₀) (hwork₀ : ∀ i, i ≠ src → Parked (work₀ i))
+    (hsrc : work₀ src = regTape a) (hdst : work₀ dst = regTape b) :
+    (subIntoTM src dst).HoareTime
+      (EmitPred inp₀ work₀ ys)
+      (EmitPred inp₀ (Function.update work₀ dst (regTape (b - a))) ys)
+      (a * ((2 * b + 4) + 2) + (a + 2)) := by
+  have hbody : ∀ i, i < a → (decRegTM dst).HoareTime
+      (fun inp work out => inp = inp₀ ∧
+        work = Function.update (Function.update work₀ dst (regTape (b - i))) src
+          ⟨i + 2, regCells a⟩ ∧ OutAcc ys out)
+      (fun inp work out => inp = inp₀ ∧
+        work = Function.update (Function.update work₀ dst (regTape (b - (i + 1)))) src
+          ⟨i + 2, regCells a⟩ ∧ OutAcc ys out)
+      (2 * b + 4) := by
+    intro i hi
+    have hspec := decRegTM_hoareTime dst (b - i) inp₀
+      (Function.update (Function.update work₀ dst (regTape (b - i))) src
+        ⟨i + 2, regCells a⟩) ys hinp₀
+      (fun j hj => by
+        by_cases hjs : j = src
+        · subst hjs
+          rw [Function.update_self]
+          exact parked_regCells (by omega)
+        · rw [Function.update_of_ne hjs]
+          by_cases hjd : j = dst
+          · subst hjd
+            rw [Function.update_self]
+            exact parked_regTape _
+          · rw [Function.update_of_ne hjd]
+            exact hwork₀ j hjs)
+      (by
+        rw [Function.update_of_ne (fun h => hne h.symm), Function.update_self])
+    have hfun : Function.update
+        (Function.update (Function.update work₀ dst (regTape (b - i))) src
+          ⟨i + 2, regCells a⟩) dst (regTape (b - i - 1))
+        = Function.update (Function.update work₀ dst (regTape (b - (i + 1)))) src
+            ⟨i + 2, regCells a⟩ := by
+      rw [Function.update_comm hne, Function.update_idem]
+      rw [show b - i - 1 = b - (i + 1) from by omega]
+    refine (hspec.consequence (fun inp work out h => h) ?_ ?_)
+    · rintro inp work out ⟨h1, h2, h3⟩
+      exact ⟨h1, by rw [h2, hfun], h3⟩
+    · omega
+  have hrule := forRegTM_hoareTime (decRegTM dst) src a inp₀
+    (fun i => Function.update work₀ dst (regTape (b - i))) (fun _ => ys)
+    (2 * b + 4) hinp₀
+    (fun i => by
+      show Function.update work₀ dst (regTape (b - i)) src = regTape a
+      rw [Function.update_of_ne hne]
+      exact hsrc)
+    (fun i j hj => by
+      show Parked (Function.update work₀ dst (regTape (b - i)) j)
+      by_cases hjd : j = dst
+      · subst hjd
+        rw [Function.update_self]
+        exact parked_regTape _
+      · rw [Function.update_of_ne hjd]
+        exact hwork₀ j hj)
+    hbody
+  have hw0 : Function.update work₀ dst (regTape (b - 0)) = work₀ := by
+    rw [show regTape (b - 0) = work₀ dst from by rw [Nat.sub_zero, hdst],
+      Function.update_eq_self]
+  exact hrule.weaken_pre (fun inp work out h => by
+    show EmitPred inp₀ (Function.update work₀ dst (regTape (b - 0))) ys inp work out
     rw [hw0]
     exact h)
 
