@@ -598,7 +598,7 @@ private theorem compare_loop :
           rw [hw₁] <;> omega
     | cons b B' =>
       have hr4 : (c.work 4).read = (b).toΓ := by
-        rw [Tape.read, hh4]; simpa using hc4 0 (by simp)
+        rw [Tape.read, hh4]; exact hc4 0 (by simp)
       have hneq : (c.work 3).read ≠ (c.work 4).read := by
         rw [hr3, hr4]
         exact fun h => toΓ_ne_blank (hB b (by simp)) h.symm
@@ -612,7 +612,7 @@ private theorem compare_loop :
   | cons a A' ihA =>
     intro hA B hB c p q hstate hh3 hh4 hc3 hb3 hc4 hb4 hin hout hoth
     have hr3 : (c.work 3).read = a.toΓ := by
-      rw [Tape.read, hh3]; simpa using hc3 0 (by simp)
+      rw [Tape.read, hh3]; exact hc3 0 (by simp)
     have hr3nb : (c.work 3).read ≠ Γ.blank := by
       rw [hr3]; exact toΓ_ne_blank (hA a (by simp))
     have hr3ns : (c.work 3).read ≠ Γ.start := by
@@ -633,7 +633,7 @@ private theorem compare_loop :
           rw [hw₁] <;> omega
     | cons b B' =>
       have hr4 : (c.work 4).read = b.toΓ := by
-        rw [Tape.read, hh4]; simpa using hc4 0 (by simp)
+        rw [Tape.read, hh4]; exact hc4 0 (by simp)
       by_cases hab : a = b
       · subst hab
         have heq : (c.work 3).read = (c.work 4).read := by rw [hr3, hr4]
@@ -649,7 +649,7 @@ private theorem compare_loop :
             (by
               intro j hj
               rw [hcl3, show p + 1 + j = p + (j + 1) by omega]
-              simpa using hc3 (j + 1) (by simpa using Nat.succ_lt_succ hj))
+              exact hc3 (j + 1) (by simpa using Nat.succ_lt_succ hj))
             (by
               rw [hcl3, show p + 1 + A'.length = p + (a :: A').length by
                 simp only [List.length_cons]; omega]
@@ -657,7 +657,7 @@ private theorem compare_loop :
             (by
               intro j hj
               rw [hcl4, show q + 1 + j = q + (j + 1) by omega]
-              simpa using hc4 (j + 1) (by simpa using Nat.succ_lt_succ hj))
+              exact hc4 (j + 1) (by simpa using Nat.succ_lt_succ hj))
             (by
               rw [hcl4, show q + 1 + B'.length = q + (a :: B').length by
                 simp only [List.length_cons]; omega]

@@ -304,7 +304,6 @@ private theorem roundMatch (f : VFlags) (v0 v1 v2 : Γ) (stSyms seg : List Γw)
         else (c.work scT).cells j)
       (by
         intro i hi
-        dsimp only
         by_cases hcase : 1 ≤ i ∧ i < 1 + stSyms.length
         · rw [if_pos hcase]
           exact hWns _ (by omega)
@@ -909,7 +908,6 @@ private theorem roundMismatch (f : VFlags) (v0 v1 v2 : Γ) (stSyms seg : List Γ
               else (c.work scT).cells j)
             (by
               intro i hi
-              dsimp only
               by_cases hcase : 1 ≤ i ∧ i < 1 + stSyms.length
               · rw [if_pos hcase]
                 exact hWns _ (by omega)

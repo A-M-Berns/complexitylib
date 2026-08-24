@@ -1778,7 +1778,8 @@ private theorem scatter1_mat_aux {k : ℕ} (N : NTM k) (bb : Bool) (M : ℕ) (q'
       (fun j => if (j : ℕ) < m then false else rc j) ilm (if m = 0 then false else true)
       ((singleTapeSim N).trace (3 * m) (fun _ => bb) c1) hcs (by rw [hcw]; exact hh)
       (by rw [hcw]; exact hb0) (by rw [hcw]; exact hb1) (by rw [hcw]; exact hb2) hnt hcis hcos
-    rw [hcw, hrcm] at htr
+    rw [hcw] at htr
+    simp only [hrcm] at htr
     refine ⟨⟨wtm.head + 3, Function.update (Function.update (Function.update wtm.cells wtm.head
         (if rc ⟨m, hmk⟩ then Γw.one else Γw.zero).toΓ) (wtm.head + 1) Γw.zero.toΓ)
         (wtm.head + 2) Γw.zero.toΓ⟩, ?_, ?_, ?_, ?_, ?_⟩
