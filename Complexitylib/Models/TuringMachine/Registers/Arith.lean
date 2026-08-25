@@ -105,6 +105,128 @@ theorem addIntoTM_hoareTime (src dst : Fin n) (hne : src ≠ dst) (a b : ℕ)
     exact h)
 
 
+
+/-! ### Nonzero test as a 0/1 flag register
+
+`forRegTM body r` runs `body` exactly `r` times, branching on the *work* register `r` — never
+on the output tape, which the emit convention reserves for the accumulator. So a register
+holding `0` or `1` already **is** a conditional: `forRegTM body flag` runs `body` once when
+`flag = 1` and skips it when `flag = 0`.
+
+That makes the missing primitive not a branch combinator but a *flag*: a machine setting
+`flag := min v 1`. `setOneTM` is idempotent, so looping it `v` times lands on `min v 1`, and
+the whole construction reuses `forRegTM_hoareTime` with no new control flow. -/
+
+/-- Set a register to `1`, whatever it held. Idempotent, which is what lets it be looped. -/
+def setOneTM (q : Fin n) : TM n := seqTM (clearRegTM q) (incRegTM q)
+
+/-- **`setOneTM` Hoare specification.** -/
+theorem setOneTM_hoareTime (q : Fin n) (d : ℕ)
+    (inp₀ : Tape) (work₀ : Fin n → Tape) (ys : List Bool)
+    (hinp₀ : Parked inp₀) (hwork₀ : ∀ i, i ≠ q → Parked (work₀ i))
+    (hq : work₀ q = regTape d) :
+    (setOneTM (n := n) q).HoareTime
+      (EmitPred inp₀ work₀ ys)
+      (EmitPred inp₀ (Function.update work₀ q (regTape 1)) ys)
+      (2 * d + 4 + 1 + (2 * 0 + 4)) := by
+  have hpark0 : ∀ i, Parked (Function.update work₀ q (regTape 0) i) := by
+    intro i
+    by_cases hiq : i = q
+    · subst hiq; rw [Function.update_self]; exact parked_regTape _
+    · rw [Function.update_of_ne hiq]
+      by_cases hq' : i = q
+      · exact absurd hq' hiq
+      · exact hwork₀ i hq'
+  have h₁ := clearRegTM_hoareTime q d inp₀ work₀ ys hinp₀ hwork₀ hq
+  have h₂ := incRegTM_hoareTime q 0 inp₀ (Function.update work₀ q (regTape 0)) ys hinp₀
+    (fun i hi => by rw [Function.update_of_ne hi]; exact hwork₀ i hi)
+    (by rw [Function.update_self])
+  have hupd : Function.update (Function.update work₀ q (regTape 0)) q (regTape (0 + 1))
+      = Function.update work₀ q (regTape 1) := by
+    rw [Function.update_idem]
+  rw [hupd] at h₂
+  exact seqTM_hoareTime _ _ h₁
+    (fun inp work out h => emitPred_transition hinp₀ hpark0 ys _ _ _ h) h₂
+
+/-- `flag := min v 1`, where `v` is the value in `src`. The zero test: `flag` is `0` exactly
+when `src` is `0`, and `1` otherwise. `src` is left untouched. -/
+def flagNonzeroTM (src flag : Fin n) : TM n :=
+  seqTM (clearRegTM flag) (forRegTM (setOneTM flag) src)
+
+/-- **`flagNonzeroTM` Hoare specification.** From `regTape v` in `src` and `regTape d` in
+`flag`, reach `regTape (min v 1)` in `flag`, leaving `src` and everything else untouched.
+
+Correctness is the idempotence of `setOneTM`: the loop runs `v` times and the invariant at
+iteration `i` is `flag = min i 1`. -/
+theorem flagNonzeroTM_hoareTime (src flag : Fin n) (hne : src ≠ flag) (v d : ℕ)
+    (inp₀ : Tape) (work₀ : Fin n → Tape) (ys : List Bool)
+    (hinp₀ : Parked inp₀) (hwork₀ : ∀ i, i ≠ src → Parked (work₀ i))
+    (hsrc : work₀ src = regTape v) (hflag : work₀ flag = regTape d) :
+    (flagNonzeroTM src flag).HoareTime
+      (EmitPred inp₀ work₀ ys)
+      (EmitPred inp₀ (Function.update work₀ flag (regTape (min v 1))) ys)
+      (2 * d + 4 + 1 + (v * ((2 * 1 + 4 + 1 + (2 * 0 + 4)) + 2) + (v + 2))) := by
+  have hparkAll : ∀ i, Parked (work₀ i) := by
+    intro i
+    by_cases his : i = src
+    · subst his; rw [hsrc]; exact parked_regTape _
+    · exact hwork₀ i his
+  have hclear := clearRegTM_hoareTime flag d inp₀ work₀ ys hinp₀
+    (fun i _ => hparkAll i) hflag
+  set w : ℕ → Fin n → Tape :=
+    fun i => Function.update work₀ flag (regTape (min i 1)) with hw
+  have hwpark : ∀ i j, Parked (w i j) := by
+    intro i j
+    by_cases hjf : j = flag
+    · subst hjf; rw [hw]; simp only []; rw [Function.update_self]; exact parked_regTape _
+    · rw [hw]; simp only []; rw [Function.update_of_ne hjf]; exact hparkAll j
+  have hbody : ∀ i, i < v → (setOneTM flag).HoareTime
+      (fun inp work out => inp = inp₀ ∧
+        work = Function.update (w i) src ⟨i + 2, regCells v⟩ ∧ OutAcc ys out)
+      (fun inp work out => inp = inp₀ ∧
+        work = Function.update (w (i + 1)) src ⟨i + 2, regCells v⟩ ∧ OutAcc ys out)
+      (2 * 1 + 4 + 1 + (2 * 0 + 4)) := by
+    intro i hi
+    have hspec := setOneTM_hoareTime flag (min i 1) inp₀
+      (Function.update (w i) src ⟨i + 2, regCells v⟩) ys hinp₀
+      (fun j hj => by
+        by_cases hjs : j = src
+        · subst hjs; rw [Function.update_self]; exact parked_regCells (by omega)
+        · rw [Function.update_of_ne hjs]; exact hwpark i j)
+      (by
+        rw [Function.update_of_ne (fun h => hne h.symm), hw]
+        simp only []
+        rw [Function.update_self])
+    have hfun : Function.update (Function.update (w i) src ⟨i + 2, regCells v⟩) flag
+        (regTape 1)
+        = Function.update (w (i + 1)) src ⟨i + 2, regCells v⟩ := by
+      rw [Function.update_comm hne, hw]
+      simp only []
+      rw [Function.update_idem, show min (i + 1) 1 = 1 from by omega]
+    refine hspec.consequence (fun inp work out h => h) ?_ (by omega)
+    rintro inp work out ⟨h1, h2, h3⟩
+    exact ⟨h1, by rw [h2, hfun], h3⟩
+  have hloop := forRegTM_hoareTime (setOneTM flag) src v inp₀ w (fun _ => ys)
+    (2 * 1 + 4 + 1 + (2 * 0 + 4)) hinp₀
+    (fun i => by
+      rw [hw]; simp only []
+      rw [Function.update_of_ne hne]
+      exact hsrc)
+    (fun i j _ => hwpark i j)
+    hbody
+  have hw0 : w 0 = Function.update work₀ flag (regTape 0) := by
+    rw [hw]; simp only []; rw [show min 0 1 = 0 from by omega]
+  have hwv : w v = Function.update work₀ flag (regTape (min v 1)) := by
+    rw [hw]
+  rw [hw0, hwv] at hloop
+  exact seqTM_hoareTime _ _ hclear
+    (fun inp work out h => emitPred_transition hinp₀
+      (fun i => by
+        by_cases hif : i = flag
+        · subst hif; rw [Function.update_self]; exact parked_regTape _
+        · rw [Function.update_of_ne hif]; exact hparkAll i) ys _ _ _ h)
+    hloop
+
 /-- `dst := dst - src` (truncated). The mirror of `addIntoTM`: the same bounded loop over
     `src`, running `decRegTM` on `dst` instead of `incRegTM`. -/
 def subIntoTM (src dst : Fin n) : TM n := forRegTM (decRegTM dst) src
