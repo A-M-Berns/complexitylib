@@ -297,6 +297,43 @@ lemma regsWork_restrict (r : Regs M n) (shift : Fin m ↪ Fin M) (w₀ : Fin n �
       = regsWork (shift.trans r) (regsWork r w₀ v) (fun j => v (shift j)) := by
   rw [regsWork_window, writeWindow_self]
 
+/-! ### Offset sub-tuples
+
+`shiftEmb o` names the `m` registers starting at offset `o` inside a tuple of `M`. Composed
+with a `Regs M n` it produces a `Regs m n`, so a machine written against a fixed small
+tuple — `unpairTM` over nine registers, a compiled interpreter over sixteen — can be
+instantiated at any offset of a larger register file without restating it.
+
+Two offset blocks are disjoint exactly when their index ranges are, which `shiftEmb_disj`
+reduces to arithmetic. -/
+
+/-- The `m` registers starting at offset `o` of a tuple of `M`. -/
+def shiftEmb (o : ℕ) {m M : ℕ} (h : o + m ≤ M) : Fin m ↪ Fin M :=
+  ⟨fun j => ⟨o + j.val, by have := j.isLt; omega⟩, by
+    intro a b e
+    have : o + a.val = o + b.val := congrArg Fin.val e
+    exact Fin.ext (by omega)⟩
+
+@[simp] lemma shiftEmb_val (o : ℕ) {m M : ℕ} (h : o + m ≤ M) (j : Fin m) :
+    ((shiftEmb o h) j : ℕ) = o + j.val := rfl
+
+/-- Blocks at offsets whose index ranges do not meet are disjoint. -/
+lemma shiftEmb_disj {o₁ o₂ m₁ m₂ M : ℕ} (h₁ : o₁ + m₁ ≤ M) (h₂ : o₂ + m₂ ≤ M)
+    (hsep : o₁ + m₁ ≤ o₂) (i : Fin m₁) (j : Fin m₂) :
+    (shiftEmb o₁ h₁) i ≠ (shiftEmb o₂ h₂) j := by
+  intro e
+  have := congrArg Fin.val e
+  simp only [shiftEmb_val] at this
+  have := i.isLt
+  omega
+
+/-- Registers of one offset block are distinct from those of a disjoint one, after
+    composing with an ambient tuple. -/
+lemma shiftEmb_trans_disj {o₁ o₂ m₁ m₂ M : ℕ} (r : Regs M n) (h₁ : o₁ + m₁ ≤ M)
+    (h₂ : o₂ + m₂ ≤ M) (hsep : o₁ + m₁ ≤ o₂) (i : Fin m₁) (j : Fin m₂) :
+    ((shiftEmb o₁ h₁).trans r) i ≠ ((shiftEmb o₂ h₂).trans r) j :=
+  Regs.ne r (shiftEmb_disj h₁ h₂ hsep i j)
+
 /-! ### Guarded arms over a register-indexed state
 
 The five mutating arms are all the same shape: a body rewriting one named register, run
