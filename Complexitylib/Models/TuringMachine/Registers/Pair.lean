@@ -71,7 +71,18 @@ namespace Complexity
 
 namespace TM
 
-variable {n : ℕ}
+variable {m n : ℕ}
+
+/-! ### Register tuples -/
+
+/-- A tuple of `m` pairwise-distinct registers inside `Fin n`. Bundling them as an
+    embedding makes distinctness one hypothesis rather than `m * (m-1) / 2`. -/
+abbrev Regs (m n : ℕ) := Fin m ↪ Fin n
+
+/-- Distinct indices name distinct registers. Discharges every side condition of the
+    form `r i ≠ r j` by `r.ne (by decide)`. -/
+lemma Regs.ne (r : Regs m n) {i j : Fin m} (h : i ≠ j) : r i ≠ r j :=
+  fun e => h (r.injective e)
 
 /-! ### The pure successor -/
 
@@ -146,12 +157,11 @@ lemma pairNextSnd_eq (a b : ℕ) :
     | `6` | `gEQ = [a = b]` |
     | `7` | `gB1 = [a + 1 = b]` |
     | `8` | `min (b - a - 1) 1`, the helper for `gB1` | -/
-abbrev PairRegs (n : ℕ) := Fin 9 ↪ Fin n
+abbrev PairRegs (n : ℕ) := Regs 9 n
 
 /-- Distinct indices name distinct registers. Discharges every side condition of the form
     `r i ≠ r j` by `r.ne (by decide)`. -/
-lemma PairRegs.ne (r : PairRegs n) {i j : Fin 9} (h : i ≠ j) : r i ≠ r j :=
-  fun e => h (r.injective e)
+lemma PairRegs.ne (r : PairRegs n) {i j : Fin 9} (h : i ≠ j) : r i ≠ r j := Regs.ne r h
 
 /-! ### Register-indexed work states
 
@@ -166,18 +176,18 @@ being noncomputable costs nothing. -/
 
 /-- The work state whose nine named registers hold the values `v`, agreeing with `w₀`
     on every other register. -/
-noncomputable def regsWork (r : PairRegs n) (w₀ : Fin n → Tape) (v : Fin 9 → ℕ) :
+noncomputable def regsWork (r : Regs m n) (w₀ : Fin n → Tape) (v : Fin m → ℕ) :
     Fin n → Tape :=
   fun i => if h : ∃ k, r k = i then regTape (v h.choose) else w₀ i
 
 /-- Reading a named register. -/
-lemma regsWork_apply (r : PairRegs n) (w₀ : Fin n → Tape) (v : Fin 9 → ℕ) (k : Fin 9) :
+lemma regsWork_apply (r : Regs m n) (w₀ : Fin n → Tape) (v : Fin m → ℕ) (k : Fin m) :
     regsWork r w₀ v (r k) = regTape (v k) := by
   have h : ∃ j, r j = r k := ⟨k, rfl⟩
   rw [regsWork, dif_pos h, r.injective h.choose_spec]
 
 /-- Registers outside the nine are untouched. -/
-lemma regsWork_of_ne (r : PairRegs n) (w₀ : Fin n → Tape) (v : Fin 9 → ℕ) {i : Fin n}
+lemma regsWork_of_ne (r : Regs m n) (w₀ : Fin n → Tape) (v : Fin m → ℕ) {i : Fin n}
     (hi : ∀ k, r k ≠ i) : regsWork r w₀ v i = w₀ i := by
   rw [regsWork, dif_neg]
   rintro ⟨k, rfl⟩
@@ -186,7 +196,7 @@ lemma regsWork_of_ne (r : PairRegs n) (w₀ : Fin n → Tape) (v : Fin 9 → ℕ
 /-- **The stage step.** Updating one named register of the state is updating one entry of
     the value vector — which is what turns the fourteen-stage bookkeeping into finite
     data. -/
-lemma regsWork_update (r : PairRegs n) (w₀ : Fin n → Tape) (v : Fin 9 → ℕ) (k : Fin 9)
+lemma regsWork_update (r : Regs m n) (w₀ : Fin n → Tape) (v : Fin m → ℕ) (k : Fin m)
     (x : ℕ) :
     Function.update (regsWork r w₀ v) (r k) (regTape x)
       = regsWork r w₀ (Function.update v k x) := by
@@ -202,9 +212,26 @@ lemma regsWork_update (r : PairRegs n) (w₀ : Fin n → Tape) (v : Fin 9 → �
     · rw [regsWork_of_ne _ _ _ (fun k' e => h ⟨k', e⟩),
         regsWork_of_ne _ _ _ (fun k' e => h ⟨k', e⟩)]
 
+/-- **Framing.** A register-indexed state commutes with an update to a register outside
+    its tuple. This is what lets a machine over `r` run inside a loop whose counter lives
+    in a register `r` does not name. -/
+lemma regsWork_update_of_ne (r : Regs m n) (w₀ : Fin n → Tape) (v : Fin m → ℕ) {i : Fin n}
+    (hi : ∀ k, r k ≠ i) (t : Tape) :
+    regsWork r (Function.update w₀ i t) v = Function.update (regsWork r w₀ v) i t := by
+  funext j
+  by_cases hj : j = i
+  · subst hj
+    rw [Function.update_self, regsWork_of_ne _ _ _ hi, Function.update_self]
+  · rw [Function.update_of_ne hj]
+    by_cases h : ∃ k, r k = j
+    · obtain ⟨k, rfl⟩ := h
+      rw [regsWork_apply, regsWork_apply]
+    · rw [regsWork_of_ne _ _ _ (fun k e => h ⟨k, e⟩),
+        regsWork_of_ne _ _ _ (fun k e => h ⟨k, e⟩), Function.update_of_ne hj]
+
 /-- A register-indexed state over a parked base is everywhere parked. -/
-lemma parked_regsWork (r : PairRegs n) {w₀ : Fin n → Tape} (h : ∀ i, Parked (w₀ i))
-    (v : Fin 9 → ℕ) : ∀ i, Parked (regsWork r w₀ v i) := by
+lemma parked_regsWork (r : Regs m n) {w₀ : Fin n → Tape} (h : ∀ i, Parked (w₀ i))
+    (v : Fin m → ℕ) : ∀ i, Parked (regsWork r w₀ v i) := by
   intro i
   rw [regsWork]
   split
@@ -223,9 +250,9 @@ is a single application. -/
     `body` is supplied as a spec valid at *any* parked state holding `v j` in `r j`,
     because `guardTM` hands it the state in which the guard register carries `forRegTM`'s
     loop cursor rather than an ordinary register tape. -/
-lemma guardRegArm (r : PairRegs n) {inp₀ : Tape} {w₀ : Fin n → Tape} {ys : List Bool}
+lemma guardRegArm (r : Regs m n) {inp₀ : Tape} {w₀ : Fin n → Tape} {ys : List Bool}
     (hinp₀ : Parked inp₀) (hpark : ∀ i, Parked (w₀ i))
-    (v : Fin 9 → ℕ) (j k : Fin 9) (hjk : j ≠ k) (y b_body : ℕ) (body : TM n)
+    (v : Fin m → ℕ) (j k : Fin m) (hjk : j ≠ k) (y b_body : ℕ) (body : TM n)
     (hg : v k ≤ 1)
     (hbody : ∀ W : Fin n → Tape, (∀ i, Parked (W i)) → W (r j) = regTape (v j) →
       body.HoareTime (EmitPred inp₀ W ys)
@@ -304,10 +331,10 @@ theorem pairGuardTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
   set V1 := Function.update (Function.update v 3 (v 0 - v 1)) 5
       (if v 1 < v 0 then 1 else 0) with hV1
   -- S2: r4 := [a < b], r2 := b - a
-  have g1_0 : V1 0 = v 0 := by rw [hV1]; simp [Function.update_apply]
-  have g1_1 : V1 1 = v 1 := by rw [hV1]; simp [Function.update_apply]
-  have g1_2 : V1 2 = v 2 := by rw [hV1]; simp [Function.update_apply]
-  have g1_4 : V1 4 = v 4 := by rw [hV1]; simp [Function.update_apply]
+  have g1_0 : V1 0 = v 0 := by rw [hV1]; simp
+  have g1_1 : V1 1 = v 1 := by rw [hV1]; simp
+  have g1_2 : V1 2 = v 2 := by rw [hV1]; simp
+  have g1_4 : V1 4 = v 4 := by rw [hV1]; simp
   have h2 := ltFlagTM_hoareTime (r 0) (r 1) (r 2) (r 4)
       (r.ne (by decide)) (r.ne (by decide)) (r.ne (by decide))
       (v 0) (v 1) (v 2) (v 4) inp₀ (regsWork r w₀ V1) ys hinp₀ (hpv V1)
@@ -319,16 +346,16 @@ theorem pairGuardTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
   set V2 := Function.update (Function.update V1 2 (v 1 - v 0)) 4
       (if v 0 < v 1 then 1 else 0) with hV2
   -- S3: r2 := (b - a) - 1
-  have g2_2 : V2 2 = v 1 - v 0 := by rw [hV2]; simp [Function.update_apply]
+  have g2_2 : V2 2 = v 1 - v 0 := by rw [hV2]; simp
   have h3 := decRegTM_hoareTime (r 2) (v 1 - v 0) inp₀ (regsWork r w₀ V2) ys hinp₀
       (fun i _ => hpv V2 i) (by rw [regsWork_apply, g2_2])
   rw [regsWork_update] at h3
   replace h3 := h3.mono_bound (show 2 * (v 1 - v 0) + 4 ≤ 2 * B + 4 by have := hB 1; omega)
   set V3 := Function.update V2 2 (v 1 - v 0 - 1) with hV3
   -- S4: r8 := min ((b - a) - 1) 1
-  have g3_2 : V3 2 = v 1 - v 0 - 1 := by rw [hV3]; simp [Function.update_apply]
+  have g3_2 : V3 2 = v 1 - v 0 - 1 := by rw [hV3]; simp
   have g3_8 : V3 8 = v 8 := by
-    rw [hV3, hV2, hV1]; simp [Function.update_apply]
+    rw [hV3, hV2, hV1]; simp
   have h4 := flagNonzeroTM_hoareTime (r 2) (r 8) (r.ne (by decide))
       (v 1 - v 0 - 1) (v 8) inp₀ (regsWork r w₀ V3) ys hinp₀ (fun i _ => hpv V3 i)
       (by rw [regsWork_apply, g3_2]) (by rw [regsWork_apply, g3_8])
@@ -340,7 +367,7 @@ theorem pairGuardTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
   set V4 := Function.update V3 8 (min (v 1 - v 0 - 1) 1) with hV4
   -- S5: r6 := 1
   have g4_6 : V4 6 = v 6 := by
-    rw [hV4, hV3, hV2, hV1]; simp [Function.update_apply]
+    rw [hV4, hV3, hV2, hV1]; simp
   have h5 := setOneTM_hoareTime (r 6) (v 6) inp₀ (regsWork r w₀ V4) ys hinp₀
       (fun i _ => hpv V4 i) (by rw [regsWork_apply, g4_6])
   rw [regsWork_update] at h5
@@ -349,8 +376,8 @@ theorem pairGuardTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
   set V5 := Function.update V4 6 1 with hV5
   -- S6: r6 := 1 - gLT
   have g5_4 : V5 4 = (if v 0 < v 1 then 1 else 0) := by
-    rw [hV5, hV4, hV3, hV2]; simp [Function.update_apply]
-  have g5_6 : V5 6 = 1 := by rw [hV5]; simp [Function.update_apply]
+    rw [hV5, hV4, hV3, hV2]; simp
+  have g5_6 : V5 6 = 1 := by rw [hV5]; simp
   have h6 := subIntoTM_hoareTime (r 4) (r 6) (r.ne (by decide))
       (if v 0 < v 1 then 1 else 0) 1 inp₀ (regsWork r w₀ V5) ys hinp₀
       (fun i _ => hpv V5 i) (by rw [regsWork_apply, g5_4]) (by rw [regsWork_apply, g5_6])
@@ -361,9 +388,9 @@ theorem pairGuardTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
   set V6 := Function.update V5 6 (1 - if v 0 < v 1 then 1 else 0) with hV6
   -- S7: r6 := (1 - gLT) - gGT = [a = b]
   have g6_5 : V6 5 = (if v 1 < v 0 then 1 else 0) := by
-    rw [hV6, hV5, hV4, hV3, hV2, hV1]; simp [Function.update_apply]
+    rw [hV6, hV5, hV4, hV3, hV2, hV1]; simp
   have g6_6 : V6 6 = 1 - (if v 0 < v 1 then 1 else 0) := by
-    rw [hV6]; simp [Function.update_apply]
+    rw [hV6]; simp
   have h7 := subIntoTM_hoareTime (r 5) (r 6) (r.ne (by decide))
       (if v 1 < v 0 then 1 else 0) (1 - if v 0 < v 1 then 1 else 0) inp₀
       (regsWork r w₀ V6) ys hinp₀ (fun i _ => hpv V6 i)
@@ -376,9 +403,9 @@ theorem pairGuardTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
       (1 - (if v 0 < v 1 then 1 else 0) - (if v 1 < v 0 then 1 else 0)) with hV7
   -- S8: r7 := gLT
   have g7_4 : V7 4 = (if v 0 < v 1 then 1 else 0) := by
-    rw [hV7, hV6, hV5, hV4, hV3, hV2]; simp [Function.update_apply]
+    rw [hV7, hV6, hV5, hV4, hV3, hV2]; simp
   have g7_7 : V7 7 = v 7 := by
-    rw [hV7, hV6, hV5, hV4, hV3, hV2, hV1]; simp [Function.update_apply]
+    rw [hV7, hV6, hV5, hV4, hV3, hV2, hV1]; simp
   have h8 := copyIntoTM_hoareTime (r 4) (r 7) (r.ne (by decide))
       (if v 0 < v 1 then 1 else 0) (v 7) inp₀ (regsWork r w₀ V7) ys hinp₀
       (fun i _ => hpv V7 i) (by rw [regsWork_apply, g7_4]) (by rw [regsWork_apply, g7_7])
@@ -391,9 +418,9 @@ theorem pairGuardTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
   set V8 := Function.update V7 7 (if v 0 < v 1 then 1 else 0) with hV8
   -- S9: r7 := gLT - min ((b-a)-1) 1 = [a + 1 = b]
   have g8_8 : V8 8 = min (v 1 - v 0 - 1) 1 := by
-    rw [hV8, hV7, hV6, hV5, hV4]; simp [Function.update_apply]
+    rw [hV8, hV7, hV6, hV5, hV4]; simp
   have g8_7 : V8 7 = (if v 0 < v 1 then 1 else 0) := by
-    rw [hV8]; simp [Function.update_apply]
+    rw [hV8]; simp
   have h9 := subIntoTM_hoareTime (r 8) (r 7) (r.ne (by decide))
       (min (v 1 - v 0 - 1) 1) (if v 0 < v 1 then 1 else 0) inp₀
       (regsWork r w₀ V8) ys hinp₀ (fun i _ => hpv V8 i)
@@ -408,7 +435,7 @@ theorem pairGuardTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
   have hfin : V9 = guardVals v := by
     funext k
     simp only [hV9, hV8, hV7, hV6, hV5, hV4, hV3, hV2, hV1, guardVals]
-    fin_cases k <;> simp [Function.update_apply] <;> (try split_ifs) <;> omega
+    fin_cases k <;> simp  <;> (try split_ifs) <;> omega
   rw [hfin] at h9
   -- chain
   have hres := seqEmit hinp₀ (hpv V1) h1 <|
@@ -464,15 +491,15 @@ theorem pairArmsTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
       _ ≤ 2 * B + 13 := by omega)
   set U1 := (if u 4 = 0 then u else Function.update u 0 (u 0 + 1)) with hU1
   have c1_0 : U1 0 = (if v 0 < v 1 then v 0 + 1 else v 0) := by
-    rw [hU1, hu4]; by_cases h : v 0 < v 1 <;> simp [h, Function.update_apply, hu0]
+    rw [hU1, hu4]; by_cases h : v 0 < v 1 <;> simp [h, hu0]
   have c1_1 : U1 1 = v 1 := by
-    rw [hU1, hu4]; by_cases h : v 0 < v 1 <;> simp [h, Function.update_apply, hu1]
+    rw [hU1, hu4]; by_cases h : v 0 < v 1 <;> simp [h, hu1]
   have p1_5 : U1 5 = (if v 1 < v 0 then 1 else 0) := by
-    rw [hU1, hu4]; by_cases h : v 0 < v 1 <;> simp [h, Function.update_apply, hu5]
+    rw [hU1, hu4]; by_cases h : v 0 < v 1 <;> simp [h, hu5]
   have p1_6 : U1 6 = (if v 0 = v 1 then 1 else 0) := by
-    rw [hU1, hu4]; by_cases h : v 0 < v 1 <;> simp [h, Function.update_apply, hu6]
+    rw [hU1, hu4]; by_cases h : v 0 < v 1 <;> simp [h, hu6]
   have p1_7 : U1 7 = (if v 0 + 1 = v 1 then 1 else 0) := by
-    rw [hU1, hu4]; by_cases h : v 0 < v 1 <;> simp [h, Function.update_apply, hu7]
+    rw [hU1, hu4]; by_cases h : v 0 < v 1 <;> simp [h, hu7]
   have n1_1 : U1 1 ≤ B := by rw [c1_1]; exact hB 1
   have q1_5 : U1 5 ≤ 1 := by rw [p1_5]; split_ifs <;> omega
   -- S11: b += gGT
@@ -486,13 +513,13 @@ theorem pairArmsTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
       _ ≤ 2 * B + 13 := by omega)
   set U2 := (if U1 5 = 0 then U1 else Function.update U1 1 (U1 1 + 1)) with hU2
   have c2_0 : U2 0 = (if v 0 < v 1 then v 0 + 1 else v 0) := by
-    rw [hU2, p1_5]; by_cases h : v 1 < v 0 <;> simp [h, Function.update_apply, c1_0]
+    rw [hU2, p1_5]; by_cases h : v 1 < v 0 <;> simp [h, c1_0]
   have c2_1 : U2 1 = (if v 1 < v 0 then v 1 + 1 else v 1) := by
-    rw [hU2, p1_5]; by_cases h : v 1 < v 0 <;> simp [h, Function.update_apply, c1_1]
+    rw [hU2, p1_5]; by_cases h : v 1 < v 0 <;> simp [h, c1_1]
   have p2_6 : U2 6 = (if v 0 = v 1 then 1 else 0) := by
-    rw [hU2, p1_5]; by_cases h : v 1 < v 0 <;> simp [h, Function.update_apply, p1_6]
+    rw [hU2, p1_5]; by_cases h : v 1 < v 0 <;> simp [h, p1_6]
   have p2_7 : U2 7 = (if v 0 + 1 = v 1 then 1 else 0) := by
-    rw [hU2, p1_5]; by_cases h : v 1 < v 0 <;> simp [h, Function.update_apply, p1_7]
+    rw [hU2, p1_5]; by_cases h : v 1 < v 0 <;> simp [h, p1_7]
   have n2_1 : U2 1 ≤ B + 1 := by have := hB 1; rw [c2_1]; split_ifs <;> omega
   have q2_6 : U2 6 ≤ 1 := by rw [p2_6]; split_ifs <;> omega
   -- S12: b += gEQ
@@ -506,14 +533,14 @@ theorem pairArmsTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
       _ ≤ 2 * B + 13 := by omega)
   set U3 := (if U2 6 = 0 then U2 else Function.update U2 1 (U2 1 + 1)) with hU3
   have c3_0 : U3 0 = (if v 0 < v 1 then v 0 + 1 else v 0) := by
-    rw [hU3, p2_6]; by_cases h : v 0 = v 1 <;> simp [h, Function.update_apply, c2_0]
+    rw [hU3, p2_6]; by_cases h : v 0 = v 1 <;> simp [h, c2_0]
   have c3_1 : U3 1 = (if v 0 < v 1 then v 1 else v 1 + 1) := by
     rw [hU3, p2_6]; by_cases h : v 0 = v 1 <;>
-      simp [h, Function.update_apply, c2_1] <;> split_ifs <;> omega
+      simp [h, c2_1] <;> split_ifs <;> omega
   have p3_6 : U3 6 = (if v 0 = v 1 then 1 else 0) := by
-    rw [hU3, p2_6]; by_cases h : v 0 = v 1 <;> simp [h, Function.update_apply, p2_6]
+    rw [hU3, p2_6]; by_cases h : v 0 = v 1 <;> simp [h, p2_6]
   have p3_7 : U3 7 = (if v 0 + 1 = v 1 then 1 else 0) := by
-    rw [hU3, p2_6]; by_cases h : v 0 = v 1 <;> simp [h, Function.update_apply, p2_7]
+    rw [hU3, p2_6]; by_cases h : v 0 = v 1 <;> simp [h, p2_7]
   have n3_1 : U3 1 ≤ B + 1 := by have := hB 1; rw [c3_1]; split_ifs <;> omega
   have q3_7 : U3 7 ≤ 1 := by rw [p3_7]; split_ifs <;> omega
   -- S13: b := 0 when a + 1 = b
@@ -527,11 +554,11 @@ theorem pairArmsTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
       _ ≤ 2 * B + 13 := by omega)
   set U4 := (if U3 7 = 0 then U3 else Function.update U3 1 0) with hU4
   have c4_0 : U4 0 = (if v 0 < v 1 then v 0 + 1 else v 0) := by
-    rw [hU4, p3_7]; by_cases h : v 0 + 1 = v 1 <;> simp [h, Function.update_apply, c3_0]
+    rw [hU4, p3_7]; by_cases h : v 0 + 1 = v 1 <;> simp [h, c3_0]
   have c4_1 : U4 1 = (if v 0 + 1 = v 1 then 0 else if v 0 < v 1 then v 1 else v 1 + 1) := by
-    rw [hU4, p3_7]; by_cases h : v 0 + 1 = v 1 <;> simp [h, Function.update_apply, c3_1]
+    rw [hU4, p3_7]; by_cases h : v 0 + 1 = v 1 <;> simp [h, c3_1]
   have p4_6 : U4 6 = (if v 0 = v 1 then 1 else 0) := by
-    rw [hU4, p3_7]; by_cases h : v 0 + 1 = v 1 <;> simp [h, Function.update_apply, p3_6]
+    rw [hU4, p3_7]; by_cases h : v 0 + 1 = v 1 <;> simp [h, p3_6]
   have n4_0 : U4 0 ≤ B + 1 := by have := hB 0; rw [c4_0]; split_ifs <;> omega
   have q4_6 : U4 6 ≤ 1 := by rw [p4_6]; split_ifs <;> omega
   -- S14: a := 0 when a = b
@@ -547,15 +574,15 @@ theorem pairArmsTM_hoareTime (r : PairRegs n) (v : Fin 9 → ℕ) (B : ℕ)
   have out0 : U5 0 = pairNextFst (v 0) (v 1) := by
     rw [hU5, p4_6]
     by_cases h : v 0 = v 1 <;>
-      simp [h, Function.update_apply, c4_0, pairNextFst_eq] <;> split_ifs <;> omega
+      simp [h, c4_0, pairNextFst_eq] <;> split_ifs <;> omega
   have out1 : U5 1 = pairNextSnd (v 0) (v 1) := by
     rw [hU5, p4_6]
     by_cases h : v 0 = v 1 <;>
-      simp [h, Function.update_apply, c4_1, pairNextSnd_eq] <;> split_ifs <;> omega
+      simp [h, c4_1, pairNextSnd_eq] <;> split_ifs <;> omega
   have hother : ∀ k : Fin 9, k ≠ 0 → k ≠ 1 → U5 k = u k := by
     intro k h0 h1
     rw [hU5, hU4, hU3, hU2, hU1]
-    split_ifs <;> simp [Function.update_apply, h0, h1]
+    split_ifs <;> simp [h0, h1]
   have hfin : U5 = pairNextVals v := by
     funext k
     by_cases hk0 : k = 0
