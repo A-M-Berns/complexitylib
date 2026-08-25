@@ -65,7 +65,7 @@ theorem seqEmit {tm₁ tm₂ : TM n} {inp₀ : Tape} {w₀ w₁ w₂ : Fin n →
     (h₂ : tm₂.HoareTime (EmitPred inp₀ w₁ ys) (EmitPred inp₀ w₂ ys) b₂) :
     (seqTM tm₁ tm₂).HoareTime (EmitPred inp₀ w₀ ys) (EmitPred inp₀ w₂ ys) (b₁ + 1 + b₂) :=
   seqTM_hoareTime _ _ h₁
-    (fun inp work out h => emitPred_transition hinp₀ hw₁ ys _ _ _ h) h₂
+    (fun _ _ _ h => emitPred_transition hinp₀ hw₁ ys _ _ _ h) h₂
 
 /-! ### Guarded commands -/
 
