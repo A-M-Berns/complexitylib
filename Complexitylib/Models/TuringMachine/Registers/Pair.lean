@@ -334,6 +334,52 @@ lemma shiftEmb_trans_disj {o₁ o₂ m₁ m₂ M : ℕ} (r : Regs M n) (h₁ : o
     ((shiftEmb o₁ h₁).trans r) i ≠ ((shiftEmb o₂ h₂).trans r) j :=
   Regs.ne r (shiftEmb_disj h₁ h₂ hsep i j)
 
+/-! ### Running a submachine in a window of the ambient file
+
+`runChild` is the caller-side interface for nested machine composition: a submachine
+written against its own register tuple runs inside a window of a larger file, updating the
+ambient register vector on that window and **nowhere else**. The caller's own registers are
+preserved structurally, by disjointness of index intervals, rather than by a frame
+argument. -/
+
+lemma runChild {A m : ℕ} (W : Fin m ↪ Fin A) (R : Regs A n) (M : TM n)
+    (F : (Fin m → ℕ) → Fin m → ℕ) (t B : ℕ)
+    {inp₀ : Tape} {ys : List Bool} (w₀ : Fin n → Tape)
+    (hpark : ∀ i, Parked (w₀ i)) (V : Fin A → ℕ) (hV : ∀ k, V k < B)
+    (hM : ∀ (Wb : Fin n → Tape) (u : Fin m → ℕ), (∀ i, Parked (Wb i)) → (∀ k, u k < B) →
+      M.HoareTime (EmitPred inp₀ (regsWork (W.trans R) Wb u) ys)
+                  (EmitPred inp₀ (regsWork (W.trans R) Wb (F u)) ys) t) :
+    M.HoareTime (EmitPred inp₀ (regsWork R w₀ V) ys)
+                (EmitPred inp₀ (regsWork R w₀ (writeWindow W V (F (fun j => V (W j))))) ys)
+                t := by
+  have h := hM (regsWork R w₀ V) (fun j => V (W j)) (parked_regsWork R hpark V)
+    (fun k => hV _)
+  rw [regsWork_restrict R W w₀ V, ← regsWork_window]
+  exact h
+
+/-- Anything outside the window is untouched. -/
+lemma runChild_frame {A m : ℕ} (W : Fin m ↪ Fin A) (V : Fin A → ℕ) (u : Fin m → ℕ)
+    {k : Fin A} (hk : ∀ j, W j ≠ k) : writeWindow W V u k = V k :=
+  writeWindow_of_ne _ _ _ hk
+
+/-- Values stay inside a bound if the submachine's do. -/
+lemma writeWindow_bounded {A m : ℕ} (W : Fin m ↪ Fin A) (V : Fin A → ℕ) (u : Fin m → ℕ)
+    (B : ℕ) (hV : ∀ k, V k < B) (hu : ∀ j, u j < B) (k : Fin A) :
+    writeWindow W V u k < B := by
+  by_cases h : ∃ j, W j = k
+  · obtain ⟨j, rfl⟩ := h
+    rw [writeWindow_apply]; exact hu j
+  · rw [writeWindow_of_ne _ _ _ (fun j e => h ⟨j, e⟩)]; exact hV k
+
+/-- Every ambient index disequality between offset blocks reduces to arithmetic. -/
+lemma amb_ne {o₁ o₂ m₁ m₂ A : ℕ} (h₁ : o₁ + m₁ ≤ A) (h₂ : o₂ + m₂ ≤ A)
+    (i : Fin m₁) (j : Fin m₂) (hne : o₁ + (i : ℕ) ≠ o₂ + (j : ℕ)) :
+    (shiftEmb o₁ h₁) i ≠ (shiftEmb o₂ h₂) j := by
+  intro e
+  have := congrArg Fin.val e
+  simp only [shiftEmb_val] at this
+  exact hne this
+
 /-! ### Guarded arms over a register-indexed state
 
 The five mutating arms are all the same shape: a body rewriting one named register, run
