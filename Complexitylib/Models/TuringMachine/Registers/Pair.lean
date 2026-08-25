@@ -238,6 +238,65 @@ lemma parked_regsWork (r : Regs m n) {w₀ : Fin n → Tape} (h : ∀ i, Parked 
   · exact parked_regTape _
   · exact h i
 
+/-! ### Sub-windows of a register tuple
+
+A machine written over `m` registers has to be runnable inside a larger tuple that names
+`M ≥ m` of them — a compiled interpreter calls `unpairTM` on nine of its sixteen
+registers. `shift.trans r` names that sub-window, and the two lemmas here move a
+register-indexed state across the boundary in both directions. -/
+
+/-- Overwrite the window named by `shift` with `u`, leaving every other entry of `v`
+    alone. -/
+noncomputable def writeWindow (shift : Fin m ↪ Fin M) (v : Fin M → ℕ) (u : Fin m → ℕ) :
+    Fin M → ℕ :=
+  fun k => if h : ∃ j, shift j = k then u h.choose else v k
+
+lemma writeWindow_apply (shift : Fin m ↪ Fin M) (v : Fin M → ℕ) (u : Fin m → ℕ)
+    (j : Fin m) : writeWindow shift v u (shift j) = u j := by
+  have h : ∃ i, shift i = shift j := ⟨j, rfl⟩
+  rw [writeWindow, dif_pos h, shift.injective h.choose_spec]
+
+lemma writeWindow_of_ne (shift : Fin m ↪ Fin M) (v : Fin M → ℕ) (u : Fin m → ℕ)
+    {k : Fin M} (hk : ∀ j, shift j ≠ k) : writeWindow shift v u k = v k := by
+  rw [writeWindow, dif_neg]
+  rintro ⟨j, rfl⟩
+  exact hk j rfl
+
+lemma writeWindow_self (shift : Fin m ↪ Fin M) (v : Fin M → ℕ) :
+    writeWindow shift v (fun j => v (shift j)) = v := by
+  funext k
+  by_cases h : ∃ j, shift j = k
+  · obtain ⟨j, rfl⟩ := h
+    rw [writeWindow_apply]
+  · rw [writeWindow_of_ne _ _ _ (fun j e => h ⟨j, e⟩)]
+
+/-- **Running a machine on a sub-window.** A state indexed by the window `shift.trans r`,
+    over a base that is itself indexed by `r`, is the same state indexed by `r` with the
+    window's entries written back. -/
+lemma regsWork_window (r : Regs M n) (shift : Fin m ↪ Fin M) (w₀ : Fin n → Tape)
+    (v : Fin M → ℕ) (u : Fin m → ℕ) :
+    regsWork (shift.trans r) (regsWork r w₀ v) u = regsWork r w₀ (writeWindow shift v u) := by
+  funext i
+  by_cases h : ∃ j, r (shift j) = i
+  · obtain ⟨j, rfl⟩ := h
+    rw [show r (shift j) = (shift.trans r) j from rfl, regsWork_apply,
+      show (shift.trans r) j = r (shift j) from rfl, regsWork_apply, writeWindow_apply]
+  · rw [regsWork_of_ne _ _ _ (fun j e => h ⟨j, e⟩)]
+    by_cases hk : ∃ k, r k = i
+    · obtain ⟨k, rfl⟩ := hk
+      have hne : ∀ j, shift j ≠ k := fun j e => h ⟨j, by rw [e]⟩
+      rw [regsWork_apply, regsWork_apply, writeWindow_of_ne _ _ _ hne]
+    · rw [regsWork_of_ne _ _ _ (fun k e => hk ⟨k, e⟩),
+        regsWork_of_ne _ _ _ (fun k e => hk ⟨k, e⟩)]
+
+/-- The other direction: a state indexed by `r` is already a state indexed by any
+    sub-window of it, over itself as base. -/
+lemma regsWork_restrict (r : Regs M n) (shift : Fin m ↪ Fin M) (w₀ : Fin n → Tape)
+    (v : Fin M → ℕ) :
+    regsWork r w₀ v
+      = regsWork (shift.trans r) (regsWork r w₀ v) (fun j => v (shift j)) := by
+  rw [regsWork_window, writeWindow_self]
+
 /-! ### Guarded arms over a register-indexed state
 
 The five mutating arms are all the same shape: a body rewriting one named register, run
