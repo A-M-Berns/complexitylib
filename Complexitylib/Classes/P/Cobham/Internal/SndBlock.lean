@@ -186,7 +186,7 @@ private theorem sndBlockTM_scan_loop :
       rw [show c.output.writeAndMove (readBackWrite c.output.read) (idleDir c.output.read)
           = c.output from by
             rw [writeAndMove_readBack c.output houtne, idleDir, if_neg houtne, Tape.move]]
-      simpa [sndBlock] using hpre.hasOutput
+      simpa [sndBlock, unpair?] using hpre.hasOutput
   | succ fuel ih =>
       intro w hw c hstate hsuf hpre
       -- Halting helper for the malformed / end-of-input branches.
@@ -205,7 +205,7 @@ private theorem sndBlockTM_scan_loop :
           rw [show c.output.writeAndMove (readBackWrite c.output.read) (idleDir c.output.read)
               = c.output from by
                 rw [writeAndMove_readBack c.output houtne, idleDir, if_neg houtne, Tape.move]]
-          simpa [sndBlock] using hpre.hasOutput
+          simpa [sndBlock, unpair?] using hpre.hasOutput
       | [false] =>
           -- scanA reads false → scanBfalse; next reads blank → done.
           have hread : c.input.read = Γ.ofBool false := hsuf.read_cons
@@ -236,7 +236,7 @@ private theorem sndBlockTM_scan_loop :
           rw [show c1.output.writeAndMove (readBackWrite c1.output.read) (idleDir c1.output.read)
               = c1.output from by
                 rw [writeAndMove_readBack c1.output houtne1, idleDir, if_neg houtne1, Tape.move]]
-          simpa [sndBlock] using hpre1.hasOutput
+          simpa [sndBlock, unpair?] using hpre1.hasOutput
       | [true] =>
           have hread : c.input.read = Γ.ofBool true := hsuf.read_cons
           let c1 : Cfg 0 sndBlockTM.Q :=
@@ -266,7 +266,7 @@ private theorem sndBlockTM_scan_loop :
           rw [show c1.output.writeAndMove (readBackWrite c1.output.read) (idleDir c1.output.read)
               = c1.output from by
                 rw [writeAndMove_readBack c1.output houtne1, idleDir, if_neg houtne1, Tape.move]]
-          simpa [sndBlock] using hpre1.hasOutput
+          simpa [sndBlock, unpair?] using hpre1.hasOutput
       | false :: true :: y =>
           -- separator: scanA false → scanBfalse → (reads true) → emit; copy y.
           have hreadA : c.input.read = Γ.ofBool false := hsuf.read_cons
