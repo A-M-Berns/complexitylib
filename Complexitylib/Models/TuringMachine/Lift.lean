@@ -577,8 +577,7 @@ theorem retargetOutput_computesInTime_boundary (tm : TM n)
 theorem IsTransducer.liftTM {tm : TM n} (h : tm.IsTransducer) (m : ℕ) :
     (tm.liftTM m).IsTransducer := by
   intro q iHead wHeads oHead
-  simpa only [liftTM] using h q iHead
-    (fun i => wHeads (Fin.castAdd m i)) oHead
+  exact h q iHead (fun i => wHeads (Fin.castAdd m i)) oHead
 
 /-- Redirecting output to a work tape leaves the real output direction idle,
 so the resulting machine is always a one-way-output transducer. -/

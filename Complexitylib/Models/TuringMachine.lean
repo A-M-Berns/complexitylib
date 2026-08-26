@@ -100,6 +100,10 @@ def Γ.ofBool : Bool → Γ
   | false => .zero
   | true => .one
 
+@[simp] theorem Γ.ofBool_false : Γ.ofBool false = Γ.zero := rfl
+
+@[simp] theorem Γ.ofBool_true : Γ.ofBool true = Γ.one := rfl
+
 /-- A Boolean tape symbol is never the left-end marker. -/
 theorem Γ.ofBool_ne_start (b : Bool) : Γ.ofBool b ≠ Γ.start := by
   cases b <;> decide
@@ -112,6 +116,10 @@ theorem Γ.ofBool_ne_blank (b : Bool) : Γ.ofBool b ≠ Γ.blank := by
 def Γw.ofBool : Bool → Γw
   | false => .zero
   | true => .one
+
+@[simp] theorem Γw.ofBool_false : Γw.ofBool false = Γw.zero := rfl
+
+@[simp] theorem Γw.ofBool_true : Γw.ofBool true = Γw.one := rfl
 
 theorem Γw.ofBool_toΓ (b : Bool) : (Γw.ofBool b).toΓ = Γ.ofBool b := by
   cases b <;> rfl

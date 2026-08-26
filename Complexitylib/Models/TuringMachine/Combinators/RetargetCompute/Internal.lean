@@ -210,7 +210,8 @@ theorem retargetInputStarted_hoareTime_internal (M : TM k)
         retargetInputStartedCfg M y inp := by
     exact Cfg.ext rfl rfl hpre.1 hpre.2
   refine ⟨c', t, ht, ?_, hhalt, hout⟩
-  convert hreach using 1
+  rw [← hstart] at hreach
+  exact hreach
 
 /-- Combined placement seam with an exact preserved physical frame. The source
 work tapes and virtual input occupy the placed middle block; all prefix and

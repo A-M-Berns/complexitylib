@@ -1387,7 +1387,7 @@ private theorem copyInputToWorkTM_loop {n : ℕ} (idx : Fin n) (x : List Bool) :
           simp [TM.idleDir, hread, Tape.move]
         have hwork_keep :
             (c.work idx).writeAndMove Γ.blank (TM.idleDir ((c.work idx).read)) = c.work idx := by
-          simpa [transitionTape, hwork_blank] using
+          simpa [transitionTape, readBackWrite, hwork_blank] using
             (transitionTape_eq_self (t := c.work idx) (by simp [hwork_blank]))
         refine ⟨c1, ?_, rfl, ?_, ?_, ?_⟩
         · simp [TM.step, hstate, copyInputToWorkTM, hread, c1, allIdle]
