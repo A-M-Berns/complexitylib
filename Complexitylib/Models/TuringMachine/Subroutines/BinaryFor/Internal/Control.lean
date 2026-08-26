@@ -53,8 +53,7 @@ theorem binaryForTM_iteration_step_internal (body : TM n)
   rw [TM.step, if_neg (by simp [binaryForIterationWrap, binaryForTM])]
   simp only [binaryForIterationWrap, binaryForTM, hne, ↓reduceIte]
   rw [TM.step, if_neg hne] at hstep
-  simpa only [Option.map_some, binaryForIterationWrap] using
-    congrArg (Option.map (binaryForIterationWrap body counterIdx limitIdx)) hstep
+  exact congrArg (Option.map (binaryForIterationWrap body counterIdx limitIdx)) hstep
 
 /-- Exact runs of the composite iteration lift through the iteration phase of
 `binaryForTM`. -/

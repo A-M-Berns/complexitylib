@@ -481,7 +481,7 @@ private theorem binaryHornerLayersTM_hoareTimeSpace
           simpa [binaryPolynomialNatTape] using hsource.eq_init_move_right.symm
         · rw [Function.update_of_ne hi]
       have hacc : accValue ≤ cap := by
-        simpa using hcap 0 (by simp)
+        simpa [binaryHornerFold_nil_internal] using hcap 0 (by simp)
       have haccSize := Nat.size_le_size (show accValue ≤ 2 * cap by omega)
       refine hbase.consequence (fun _ _ _ h => h) (fun inp work out h => ?_)
         (by simp [binaryHornerLayersTime, binaryAddConstTime]) le_rfl ?_
@@ -494,10 +494,11 @@ private theorem binaryHornerLayersTM_hoareTimeSpace
         omega
   | cons coeff coeffs ih =>
       have hacc : accValue ≤ cap := by
-        simpa using hcap 0 (by simp)
+        simpa [binaryHornerFold_nil_internal] using hcap 0 (by simp)
       have hnext : accValue * inputValue + coeff ≤ cap := by
         have h := hcap 1 (by simp)
-        simpa [List.take_succ_cons, binaryHornerFold_cons_internal] using h
+        simpa [List.take_succ_cons, binaryHornerFold_cons_internal,
+          binaryHornerFold_nil_internal] using h
       have hlayer := binaryHornerLayerTM_hoareTimeSpace inputIdx sourceIdx
         targetIdx mulCounterIdx addCounterIdx hdistinct inputValue accValue
         coeff inputLength initialSpace inp₀ work₀ out₀ hinput hsource

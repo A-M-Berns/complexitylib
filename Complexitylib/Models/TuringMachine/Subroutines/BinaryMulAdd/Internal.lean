@@ -778,8 +778,7 @@ private theorem binaryMulAddLoopTM_hoareTime
       output := out₀ }
   refine ⟨c', binaryForLoopTime bodyTime rightValue 0 rightValue, htime, ?_,
     rfl, rfl, rfl, rfl⟩
-  simpa [spec, binaryMulAddLoopSpec, binaryMulAddDoneCfg, bodyTime,
-    binaryMulAddLoopTM, binaryForTM] using hrun
+  exact hrun
 
 private theorem binaryMulAddWorkAt_cfg_withinAuxSpace
     {Q : Type} (state : Q) (inp : Tape) (work : Fin n → Tape)
@@ -1090,8 +1089,9 @@ private theorem binaryMulAddIterationInner_reachesIn
     rw [hinpTransition, hworkTransition, houtTransition]
     exact hcounter
   have hseq := seqTM_reachesIn_of_reachesIn body succ hbody rfl hcounter'
-  simpa [body, succ, binaryMulAddBodyTimeFn, binaryForIterationTime,
-    binaryForIterationTM, phase1Wrap, phase2Wrap] using hseq
+  simp only [body, succ, binaryMulAddBodyTimeFn, binaryForIterationTime,
+    binaryForIterationTM, phase1Wrap, phase2Wrap, seqTM_qstart, seqTM_qhalt] at hseq ⊢
+  exact hseq
 
 private theorem binaryAddSpace_mono_destination
     (initialSpace leftValue dst₁ dst₂ : ℕ) (hle : dst₁ ≤ dst₂) :
@@ -1140,7 +1140,7 @@ private noncomputable def binaryMulAddLoopSpaceSpec
           (binaryMulAddScanCfg leftIdx rightIdx accIdx mulCounterIdx
             addCounterIdx inp₀ work₀ out₀ leftValue accValue current)
           cfg := by
-      simpa [binaryMulAddLoopSpec] using hreach
+      simpa [binaryMulAddLoopSpec, binaryMulAddLoopTM] using hreach
     exact (hstart.reachesIn hreach').mono le_rfl (by
       simp [binaryForCompareTime, binaryMulAddLoopSpace, binaryAddSpace,
         binaryAddLoopSpace] at htime ⊢
@@ -1185,7 +1185,7 @@ private noncomputable def binaryMulAddLoopSpaceSpec
           (binaryMulAddIterationStartCfg leftIdx rightIdx accIdx mulCounterIdx
             addCounterIdx inp₀ work₀ out₀ leftValue accValue current)
           cfg := by
-      simpa [binaryMulAddLoopSpec] using hreach
+      simpa [binaryMulAddLoopSpec, binaryMulAddLoopTM] using hreach
     have hc : cfg = binaryForIterationWrap body mulCounterIdx rightIdx d :=
       (binaryMulAddLoopTM leftIdx rightIdx accIdx mulCounterIdx
         addCounterIdx).reachesIn_right_unique hreach' hcanonical
@@ -1214,7 +1214,7 @@ private noncomputable def binaryMulAddLoopSpaceSpec
       simp only [binaryMulAddLoopSpace]
       omega
     rw [hc]
-    simpa [binaryForIterationWrap] using hd.mono le_rfl hspace
+    exact hd.mono le_rfl hspace
 
 private theorem binaryMulAddLoopTM_hoareSpace
     (leftIdx rightIdx accIdx mulCounterIdx addCounterIdx : Fin n)
@@ -1281,7 +1281,7 @@ private theorem binaryMulAddLoopTM_hoareSpace
     inputLength initialSpace inp₀ work₀ out₀ hleft hright hmulCounter
     haddCounter hinp hwork hout hworkSpace hinputSpace
   exact spaceSpec.prefix_withinAuxSpace rightValue 0 time c (by omega)
-    (by simpa [spaceSpec, spec] using hreachSpec) htime
+    (by simpa [spaceSpec, spec, binaryMulAddLoopTM] using hreachSpec) htime
 
 private theorem binaryMulAddLoopTM_hoareTimeSpace
     (leftIdx rightIdx accIdx mulCounterIdx addCounterIdx : Fin n)

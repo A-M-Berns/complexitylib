@@ -406,7 +406,7 @@ private theorem binaryForCompareCfg_step_scan_blank
     limitIdx hne equalSoFar c rfl hcounterRead hlimitRead hinp hwork hout
   dsimp only [c, binaryForCompareCfg] at hstep
   rw [binaryForWorkAt_move_left work hne] at hstep
-  simpa using hstep
+  simpa [binaryForCompareCfg] using hstep
 
 private theorem binaryForCompareCfg_step_rewind
     (body : TM n) (work : Fin n → Tape)
@@ -434,7 +434,7 @@ private theorem binaryForCompareCfg_step_rewind
     hne equalSoFar c rfl hinp hwork hout
   dsimp only [c, binaryForCompareCfg] at hstep
   rw [binaryForWorkAt_move_left work hne] at hstep
-  simpa using hstep
+  simpa [binaryForCompareCfg] using hstep
 
 private theorem binaryForCompareCfg_rewind_reachesIn
     (body : TM n) (work : Fin n → Tape)

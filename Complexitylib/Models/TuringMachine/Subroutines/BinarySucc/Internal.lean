@@ -128,7 +128,7 @@ private theorem binarySuccTM_step_one (c : Cfg n (binarySuccTM idx).Q)
       simp only [↓reduceIte, Function.update_self]
       rfl
     · rw [Function.update_of_ne hi]
-      simpa only [if_neg hi] using transitionTape_eq_self (hother i hi)
+      simpa only [if_neg hi, transitionTape] using transitionTape_eq_self (hother i hi)
   · exact transitionTape_eq_self houtput
 
 /-- Resolve a carry on zero: write one and turn left. -/
@@ -153,7 +153,7 @@ private theorem binarySuccTM_step_zero (c : Cfg n (binarySuccTM idx).Q)
       simp only [↓reduceIte, Function.update_self]
       rfl
     · rw [Function.update_of_ne hi]
-      simpa only [if_neg hi] using transitionTape_eq_self (hother i hi)
+      simpa only [if_neg hi, transitionTape] using transitionTape_eq_self (hother i hi)
   · exact transitionTape_eq_self houtput
 
 /-- Resolve overflow on the terminating blank: append one and turn left. -/
@@ -178,7 +178,7 @@ private theorem binarySuccTM_step_blank (c : Cfg n (binarySuccTM idx).Q)
       simp only [↓reduceIte, Function.update_self]
       rfl
     · rw [Function.update_of_ne hi]
-      simpa only [if_neg hi] using transitionTape_eq_self (hother i hi)
+      simpa only [if_neg hi, transitionTape] using transitionTape_eq_self (hother i hi)
   · exact transitionTape_eq_self houtput
 
 /-- Rewind one ordinary target cell to the left. -/
@@ -361,7 +361,8 @@ private theorem binarySuccTM_carry_run
       have htargetContent : target.HasBinaryContent
           (List.replicate done false ++ [true]) := by
         have hwrite := hcontent'.write_append true (by simpa using hhead)
-        simpa only [target, Tape.HasBinaryContent, Tape.move_cells] using hwrite
+        simpa only [target, Tape.HasBinaryContent, Tape.move_cells, Γ.ofBool_false,
+          Γ.ofBool_true] using hwrite
       have htargetCell0 : target.cells 0 = Γ.start := by
         exact Tape.write_move_cell0 Γ.one Dir3.left hcell0
       have htargetHead : target.head = done := by
@@ -411,7 +412,8 @@ private theorem binarySuccTM_carry_run
               (List.replicate done false ++ true :: rest) := by
             have hwrite := hcontent.write_set true hhead (by simp)
             rw [BinarySucc.set_false_to_true] at hwrite
-            simpa only [target, Tape.HasBinaryContent, Tape.move_cells] using hwrite
+            simpa only [target, Tape.HasBinaryContent, Tape.move_cells, Γ.ofBool_false,
+          Γ.ofBool_true] using hwrite
           have htargetCell0 : target.cells 0 = Γ.start := by
             exact Tape.write_move_cell0 Γ.one Dir3.left hcell0
           have htargetHead : target.head = done := by
@@ -459,7 +461,8 @@ private theorem binarySuccTM_carry_run
               (List.replicate (done + 1) false ++ rest) := by
             have hwrite := hcontent.write_set false hhead (by simp)
             rw [BinarySucc.set_true_to_false] at hwrite
-            simpa only [target, Tape.HasBinaryContent, Tape.move_cells] using hwrite
+            simpa only [target, Tape.HasBinaryContent, Tape.move_cells, Γ.ofBool_false,
+          Γ.ofBool_true] using hwrite
           have htargetCell0 : target.cells 0 = Γ.start := by
             exact Tape.write_move_cell0 Γ.zero Dir3.right hcell0
           have htargetHead : target.head = (done + 1) + 1 := by

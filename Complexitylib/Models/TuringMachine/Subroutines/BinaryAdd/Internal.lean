@@ -642,7 +642,7 @@ private def binaryAddLoopSpaceSpec
     have hreach' : (binaryAddLoopTM srcIdx dstIdx counterIdx).reachesIn time
         (binaryAddScanCfg srcIdx dstIdx counterIdx inp₀ work₀ out₀
           dstValue current) cfg := by
-      simpa [binaryAddLoopSpec] using hreach
+      simpa [binaryAddLoopSpec, binaryAddLoopTM] using hreach
     exact (hstart.reachesIn hreach').mono le_rfl (by
       simp [binaryForCompareTime, binaryAddLoopSpace] at htime ⊢
       omega)
@@ -660,7 +660,7 @@ private def binaryAddLoopSpaceSpec
     have hreach' : (binaryAddLoopTM srcIdx dstIdx counterIdx).reachesIn time
         (binaryAddIterationStartCfg srcIdx dstIdx counterIdx inp₀ work₀
           out₀ dstValue current) cfg := by
-      simpa [binaryAddLoopSpec] using hreach
+      simpa [binaryAddLoopSpec, binaryAddLoopTM] using hreach
     have hcounterTime := binarySuccTime_le current
     have hdstTime := binarySuccTime_le (dstValue + current)
     have hcounterSize := Nat.size_le_size (Nat.le_of_lt hcurrent)
@@ -727,7 +727,7 @@ private theorem binaryAddLoopTM_hoareSpace
     hsrcCounter hdstCounter srcValue dstValue inputLength initialSpace inp₀
     work₀ out₀ hsrc hcounter hinp hwork hout hworkSpace hinputSpace
   exact spaceSpec.prefix_withinAuxSpace srcValue 0 time c (by omega)
-    (by simpa [spaceSpec, spec] using hreachSpec) htime
+    (by simpa [spaceSpec, spec, binaryAddLoopTM] using hreachSpec) htime
 
 private theorem binaryAddLoopTM_hoareTimeSpace
     (srcIdx dstIdx counterIdx : Fin n)
