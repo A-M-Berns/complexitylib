@@ -65,9 +65,9 @@ private theorem pairInputWorkTM_first_loop {n : ℕ} (firstIdx : Fin n) :
       have hinputKeep₁ : c₁.input = c.input := by
         simpa [c₁] using transitionInput_eq_self hinput
       have hsourceKeep₁ : c₁.work firstIdx = c.work firstIdx := by
-        simpa [c₁] using transitionTape_eq_self (by rw [hsourceRead]; decide)
+        simpa [c₁, transitionTape] using transitionTape_eq_self (by rw [hsourceRead]; decide)
       have hotherKeep₁ (i) (hi : i ≠ firstIdx) : c₁.work i = c.work i := by
-        simpa [c₁] using transitionTape_eq_self (hother i hi)
+        simpa [c₁, transitionTape] using transitionTape_eq_self (hother i hi)
       have houtput₁ : c₁.output.HasBinaryPrefix (emitted ++ [false]) := by
         simpa [c₁] using Tape.hasBinaryPrefix_write_bit false houtput
       let c₂ : Cfg n (pairInputWorkTM firstIdx).Q :=
@@ -117,9 +117,9 @@ private theorem pairInputWorkTM_first_loop {n : ℕ} (firstIdx : Fin n) :
       have hinputKeep₁ : c₁.input = c.input := by
         simpa [c₁] using transitionInput_eq_self hinput
       have hsourceKeep₁ : c₁.work firstIdx = c.work firstIdx := by
-        simpa [c₁] using transitionTape_eq_self hsource.read_ne_start
+        simpa [c₁, transitionTape] using transitionTape_eq_self hsource.read_ne_start
       have hotherKeep₁ (i) (hi : i ≠ firstIdx) : c₁.work i = c.work i := by
-        simpa [c₁] using transitionTape_eq_self (hother i hi)
+        simpa [c₁, transitionTape] using transitionTape_eq_self (hother i hi)
       have houtput₁ : c₁.output.HasBinaryPrefix (emitted ++ [bit]) := by
         simpa [c₁] using Tape.hasBinaryPrefix_write_bit bit houtput
       let c₂ : Cfg n (pairInputWorkTM firstIdx).Q :=
@@ -209,9 +209,9 @@ private theorem pairInputWorkTM_second_loop {n : ℕ} (firstIdx : Fin n) :
         simpa [c'] using transitionInput_eq_self (by rw [hinputRead]; decide)
       have hworkKeep : c'.work = c.work := by
         funext i
-        simpa [c'] using transitionTape_eq_self (hwork i)
+        simpa [c', transitionTape] using transitionTape_eq_self (hwork i)
       have houtputKeep : c'.output = c.output := by
-        simpa [c'] using transitionTape_eq_self (by rw [houtputRead]; decide)
+        simpa [c', transitionTape] using transitionTape_eq_self (by rw [houtputRead]; decide)
       refine ⟨c', .step hstep .zero, rfl, ?_, ?_, hworkKeep, ?_⟩
       · rw [hinputKeep]
         exact hinput
@@ -233,7 +233,7 @@ private theorem pairInputWorkTM_second_loop {n : ℕ} (firstIdx : Fin n) :
         simpa [c₁] using hinput.move_right_cons
       have hworkKeep : c₁.work = c.work := by
         funext i
-        simpa [c₁] using transitionTape_eq_self (hwork i)
+        simpa [c₁, transitionTape] using transitionTape_eq_self (hwork i)
       have hwork₁ (i) : (c₁.work i).read ≠ Γ.start := by
         rw [hworkKeep]
         exact hwork i

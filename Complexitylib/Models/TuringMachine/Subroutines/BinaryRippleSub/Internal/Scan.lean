@@ -149,23 +149,25 @@ private theorem binaryRippleSubCoreTM_step_terminal {n : ℕ}
     · by_cases hil : i = lhsIdx
       · subst i
         simpa [binaryRippleSubScanTurnWork,
-          hdistinct.lhs_result] using
+          hdistinct.lhs_result, transitionTape] using
           transitionTape_eq_self (by rw [hlhs]; decide)
       · by_cases hir : i = rhsIdx
         · subst i
           simpa [binaryRippleSubScanTurnWork,
-            hdistinct.rhs_result] using
+            hdistinct.rhs_result, transitionTape] using
             transitionTape_eq_self (by rw [hrhs]; decide)
-        · simpa [binaryRippleSubScanTurnWork, hires] using
+        · simpa [binaryRippleSubScanTurnWork, hires, transitionTape] using
             transitionTape_eq_self (hother i hil hir hires)
   · simp [binaryRippleSubScanTurnWork, hdistinct.lhs_result]
   · simp [binaryRippleSubScanTurnWork, hdistinct.lhs_result]
   · simp [binaryRippleSubScanTurnWork, hdistinct.rhs_result]
   · simp [binaryRippleSubScanTurnWork, hdistinct.rhs_result]
-  · simpa [finalWork, binaryRippleSubScanTurnWork, Tape.move_cells] using
+  · simpa [finalWork, binaryRippleSubScanTurnWork, Tape.move_cells,
+      Tape.HasBinaryContent] using
       hresult.2
   · simp [binaryRippleSubScanTurnWork, Tape.move, hresult.1]
-  · simpa [finalWork, binaryRippleSubScanTurnWork, Tape.move_cells] using
+  · simpa [finalWork, binaryRippleSubScanTurnWork, Tape.move_cells,
+      Tape.HasBinaryContent] using
       hresultStart
   · intro i _ _ hires
     simp [binaryRippleSubScanTurnWork, hires]

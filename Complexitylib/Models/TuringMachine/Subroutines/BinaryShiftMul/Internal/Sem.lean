@@ -329,7 +329,7 @@ private theorem binaryShiftMulDoubleTM_hoareTime_frame {n : ℕ}
         (fun inp' work' out' => inp' = inp ∧ work' = work ∧ out' = out)
         (fun inp' work' out' => inp' = inp ∧ work' = work₂ ∧ out' = out)
         (resetBinaryWorkTime 1 shift.size) := by
-      simpa only [work₂, binaryShiftMulNatTape,
+      simpa only [work₂, binaryShiftMulNatTape, Nat.zero_bits, List.map_nil,
         Nat.size_eq_bits_len] using hresetTmp
     have hwork₂ : ∀ i, Parked (work₂ i) := by
       intro i
@@ -1097,7 +1097,8 @@ private theorem binaryShiftMulLoopTM_hoareTime_frame {n : ℕ}
           acc shift
         simpa [binaryShiftMulBodyDoneCfg, binaryShiftMulScanCfg,
           binaryShiftMulPartialWork, work, acc, shift,
-          binaryShiftMulBodyDoneWork, body, hadvance] using hstep
+          binaryShiftMulBodyDoneWork, body, hadvance,
+          forBinaryWorkBodyWrap] using hstep
       stopStep := by
         apply forBinaryWorkTM_step_scan_blank_internal abi.rhs body
         · rfl
@@ -1133,11 +1134,14 @@ private theorem binaryShiftMulLoopTM_hoareTime_frame {n : ℕ}
     by_cases haccIdx : i = abi.acc
     · subst i
       rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_acc]
-      simpa [BinaryShiftMul.partialAcc] using hacc.eq_init_move_right.symm
+      simpa [BinaryShiftMul.partialAcc, binaryShiftMulNatTape,
+        show Nat.fromBitsLE [] = 0 from rfl, Nat.zero_bits] using
+        hacc.eq_init_move_right.symm
     by_cases hshiftIdx : i = abi.shift
     · subst i
       rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_shift]
-      simpa [BinaryShiftMul.partialShift] using hshift.eq_init_move_right.symm
+      simpa [BinaryShiftMul.partialShift, binaryShiftMulNatTape] using
+        hshift.eq_init_move_right.symm
     by_cases htmpIdx : i = abi.tmp
     · subst i
       rw [binaryShiftMulPartialWork, binaryShiftMulLoopWork_tmp]
@@ -1164,7 +1168,7 @@ private theorem binaryShiftMulLoopTM_hoareTime_frame {n : ℕ}
         work := work₀
         output := out₀ } doneCfg := by
     simpa [binaryShiftMulLoopTM, spec, binaryShiftMulScanCfg,
-      hinitialWork, doneCfg, body] using hloop
+      hinitialWork, doneCfg, body, forBinaryWorkTM] using hloop
   refine ⟨doneCfg, forBinaryWorkLoopTime bodyTime 0 rhs.size,
     (by simpa [binaryShiftMulLoopBound] using hloopTime), hreach, rfl, ?_⟩
   refine ⟨rfl, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, rfl⟩

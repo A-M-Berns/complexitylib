@@ -85,7 +85,7 @@ private theorem binaryEq_terminal_step {n : ℕ}
       by_cases hi : i = resultIdx
       · subst i
         simp [binaryEqResultCfg, binaryEqResultWork, Γw.ofBool]
-      · simpa [binaryEqResultCfg, binaryEqResultWork, hi] using
+      · simpa [binaryEqResultCfg, binaryEqResultWork, hi, transitionTape] using
           transitionTape_eq_self (hwork i hi)
 
   | true =>
@@ -99,7 +99,7 @@ private theorem binaryEq_terminal_step {n : ℕ}
       by_cases hi : i = resultIdx
       · subst i
         simp [binaryEqResultCfg, binaryEqResultWork, Γw.ofBool]
-      · simpa [binaryEqResultCfg, binaryEqResultWork, hi] using
+      · simpa [binaryEqResultCfg, binaryEqResultWork, hi, transitionTape] using
           transitionTape_eq_self (hwork i hi)
 
 private theorem binaryEq_scan_step {n : ℕ}
@@ -128,7 +128,7 @@ private theorem binaryEq_scan_step {n : ℕ}
     · subst i
       simp only [binaryEqAdvanceCfg, binaryEqAdvanceWork, if_neg hil, if_pos]
       exact writeAndMove_readBack_right (hwork rhsIdx)
-    · simpa [binaryEqAdvanceCfg, binaryEqAdvanceWork, hil, hir] using
+    · simpa [binaryEqAdvanceCfg, binaryEqAdvanceWork, hil, hir, transitionTape] using
         transitionTape_eq_self (hwork i)
 
 private theorem binaryEq_terminal_reachesIn {n : ℕ}
@@ -310,7 +310,7 @@ private theorem binaryEq_suffix_reachesIn {n : ℕ}
                   work := work₀
                   output := out₀ } c' := by
               exact .step hstep (by
-                simpa [work₁, binaryEqAdvanceCfg] using hreach)
+                simpa [work₁, binaryEqAdvanceCfg, binaryEqTM] using hreach)
             refine ⟨c', t + 1, ?_, hreach', hhalt, hfinalInput, ?_, ?_, ?_,
               hfinalLhsHead, hfinalRhsHead, ?_, hfinalOutput⟩
             · simp only [binaryEqTime, List.length_cons] at htime ⊢

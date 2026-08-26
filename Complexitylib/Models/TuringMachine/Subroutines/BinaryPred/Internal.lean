@@ -173,7 +173,7 @@ private theorem binaryPredTM_step_zero (c : Cfg n (binaryPredTM idx).Q)
       simp only [↓reduceIte, Function.update_self]
       rfl
     · rw [Function.update_of_ne hi]
-      simpa only [if_neg hi] using transitionTape_eq_self (hother i hi)
+      simpa only [if_neg hi, transitionTape] using transitionTape_eq_self (hother i hi)
   · exact transitionTape_eq_self houtput
 
 /-- Resolve borrow at the first one and advance to lookahead. -/
@@ -198,7 +198,7 @@ private theorem binaryPredTM_step_one (c : Cfg n (binaryPredTM idx).Q)
       simp only [↓reduceIte, Function.update_self]
       rfl
     · rw [Function.update_of_ne hi]
-      simpa only [if_neg hi] using transitionTape_eq_self (hother i hi)
+      simpa only [if_neg hi, transitionTape] using transitionTape_eq_self (hother i hi)
   · exact transitionTape_eq_self houtput
 
 /-- Define zero underflow by turning left from the terminating blank. -/
@@ -300,7 +300,7 @@ private theorem binaryPredTM_step_erase (c : Cfg n (binaryPredTM idx).Q)
       simp only [↓reduceIte, Function.update_self]
       rfl
     · rw [Function.update_of_ne hi]
-      simpa only [if_neg hi] using transitionTape_eq_self (hother i hi)
+      simpa only [if_neg hi, transitionTape] using transitionTape_eq_self (hother i hi)
   · exact transitionTape_eq_self houtput
 
 /-- Rewind one ordinary target cell to the left. -/
@@ -402,7 +402,7 @@ private theorem binaryPredTM_rewind_run (bits : List Bool)
             |>.HasBinaryString bits
         rw [Function.update_self]
         apply Tape.HasBinaryContent.hasBinaryString
-        · simpa only [Tape.HasBinaryContent, Tape.move_cells] using hcontent
+        · simpa only [Tape.HasBinaryContent, Tape.move_cells, Γ.ofBool_false, Γ.ofBool_true] using hcontent
         · simp [Tape.move, hhead]
       · show (Function.update c.work idx ((c.work idx).move Dir3.right) idx).cells 0 = _
         rw [Function.update_self, Tape.move_cells]
@@ -431,7 +431,7 @@ private theorem binaryPredTM_rewind_run (bits : List Bool)
             show (Function.update c.work idx ((c.work idx).move Dir3.left) idx)
               |>.HasBinaryContent bits
             rw [Function.update_self]
-            simpa only [Tape.HasBinaryContent, Tape.move_cells] using hcontent)
+            simpa only [Tape.HasBinaryContent, Tape.move_cells, Γ.ofBool_false, Γ.ofBool_true] using hcontent)
           (by
             show (Function.update c.work idx ((c.work idx).move Dir3.left) idx).cells 0 = _
             rw [Function.update_self, Tape.move_cells]
@@ -533,7 +533,7 @@ private theorem binaryPredTM_borrow_run
               (List.replicate (done + 1) true ++ rest) := by
             have hwrite := hcontent.write_set true hhead (by simp)
             rw [BinaryPred.set_false_to_true] at hwrite
-            simpa only [target, Tape.HasBinaryContent, Tape.move_cells] using
+            simpa only [target, Tape.HasBinaryContent, Tape.move_cells, Γ.ofBool_false, Γ.ofBool_true] using
               hwrite
           have htargetCell0 : target.cells 0 = Γ.start := by
             exact Tape.write_move_cell0 Γ.one Dir3.right hcell0
@@ -586,7 +586,7 @@ private theorem binaryPredTM_borrow_run
                   (List.replicate done true ++ [false]) := by
                 have hwrite := hcontent.write_set false hhead (by simp)
                 rw [BinaryPred.set_true_to_false] at hwrite
-                simpa only [target₁, Tape.HasBinaryContent, Tape.move_cells]
+                simpa only [target₁, Tape.HasBinaryContent, Tape.move_cells, Γ.ofBool_false, Γ.ofBool_true]
                   using hwrite
               have htarget₁Cell0 : target₁.cells 0 = Γ.start := by
                 exact Tape.write_move_cell0 Γ.zero Dir3.right hcell0
@@ -698,7 +698,7 @@ private theorem binaryPredTM_borrow_run
                   (List.replicate done true ++ false :: next :: rest) := by
                 have hwrite := hcontent.write_set false hhead (by simp)
                 rw [BinaryPred.set_true_to_false] at hwrite
-                simpa only [target₁, Tape.HasBinaryContent, Tape.move_cells]
+                simpa only [target₁, Tape.HasBinaryContent, Tape.move_cells, Γ.ofBool_false, Γ.ofBool_true]
                   using hwrite
               have htarget₁Cell0 : target₁.cells 0 = Γ.start := by
                 exact Tape.write_move_cell0 Γ.zero Dir3.right hcell0
