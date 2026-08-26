@@ -65,6 +65,12 @@ theorem seqTM_phase1_step (tm₁ tm₂ : TM n) {c₁ c₁' : Cfg n tm₁.Q}
         else some _) = some _
   simp only [phase1Wrap, seqTM, if_neg Sum.inl_ne_inr, if_neg hne]
 
+/-- The Phase-1 wrapping of `tm₁`'s initial configuration is `seqTM`'s own
+    initial configuration: the tapes are shared and `seqTM`'s start state is
+    `Sum.inl tm₁.qstart` by definition. -/
+@[simp] theorem phase1Wrap_initCfg (tm₁ tm₂ : TM n) (x : List Bool) :
+    phase1Wrap tm₁ tm₂ (tm₁.initCfg x) = (seqTM tm₁ tm₂).initCfg x := rfl
+
 /-- Multi-step Phase 1 simulation. -/
 theorem seqTM_reachesIn_phase1Wrap (tm₁ tm₂ : TM n) {t : ℕ}
     {c₁_start c₁_end : Cfg n tm₁.Q}

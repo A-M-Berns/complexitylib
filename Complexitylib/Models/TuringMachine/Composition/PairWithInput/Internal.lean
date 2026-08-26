@@ -202,9 +202,8 @@ theorem pairWithInputTailTM_hoareTime_internal (nf : ℕ)
         apply transitionTape_eq_self
         rw [hout]
         decide
-      simpa only [hinputStable, hworkStableAt, houtStable] using
-        (show PairWithInputEmitterPre nf first second inp work out from
-          ⟨hinput, hrawHead, hrawOutput, hworkInv, hout⟩))
+      rw [hinputStable, hworkStable, houtStable]
+      exact ⟨hinput, hrawHead, hrawOutput, hworkInv, hout⟩)
     hemitter
   have htail := seqTM_hoareTime (rewindWorkTM raw)
     (seqTM rewindInputTM (pairInputWorkTM raw)) hrewRaw' (by

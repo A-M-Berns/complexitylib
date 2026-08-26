@@ -165,7 +165,11 @@ private theorem pairInputWorkTM_first_loop {n : ℕ} (firstIdx : Fin n) :
               exact hother i hi)
           houtput₂
       refine ⟨c', ?_, hstate', ?_, hsource', ?_, ?_, ?_⟩
-      · simpa using TM.reachesIn.step hstep₁ (TM.reachesIn.step hstep₂ hreach)
+      · have harith : 2 * (bit :: bits).length + 2 = 2 * bits.length + 2 + 1 + 1 := by
+          simp only [List.length_cons]
+          omega
+        rw [harith]
+        exact TM.reachesIn.step hstep₁ (TM.reachesIn.step hstep₂ hreach)
       · exact hinput'.trans hinputKeep₂
       · rw [hsourceCells', hsourceMove, Tape.move_cells]
       · intro i hi
