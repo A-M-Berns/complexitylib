@@ -27,7 +27,8 @@ theorem trace_snoc_internal (tm : NTM n) (T : ℕ)
     tm.trace (T + 1) choices c =
       tm.trace 1 (fun _ => choices (Fin.last T))
         (tm.trace T (fun i => choices i.castSucc) c) := by
-  simpa [Fin.castLE, Fin.natAdd] using tm.trace_add T 1 choices c
+  simpa [Fin.castLE, Fin.natAdd, Fin.last, Fin.castSucc, Fin.castAdd] using
+    tm.trace_add T 1 choices c
 
 theorem trace_invariant_internal (tm : NTM n) (T : ℕ)
     (choices : Fin T → Bool) (c : Cfg n tm.Q)
