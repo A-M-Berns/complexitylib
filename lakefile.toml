@@ -3,14 +3,15 @@ version = "0.1.0"
 defaultTargets = ["Complexitylib"]
 
 [[require]]
-name = "mathlib"
-scope = "leanprover-community"
-rev = "e06eff5f95374108acfaf19f1ff7473aa7771df2"
-
-[[require]]
 name = "cslib"
 git = "https://github.com/leanprover/cslib"
 rev = "d9be64196bf145edd019f1ccfeaee0c11166ba6b"
+
+# Mathlib last, so its dependency versions take precedence over cslib's (Lake's advice).
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "5ed2965256430c3649e86755f9576b54eca72435"
 
 [[lean_lib]]
 name = "Complexitylib"
